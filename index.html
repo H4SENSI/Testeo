@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NEON NODE - Cyber tools marketplace demo">
+  <title>NEON NODE | Cyber Store</title>
+  <style>
+    :root {
+      --bg: #05070a;
+      --panel: rgba(10, 15, 21, 0.82);
+      --panel-2: rgba(15, 22, 30, 0.92);
+      --line: rgba(99, 255, 183, 0.15);
+      --green: #63ffb7;
+      --cyan: #54d9ff;
+      --purple: #9d7bff;
+      --text: #edf7f1;
+      --muted: #82938c;
+      --danger: #ff5c7a;
+      --shadow: 0 0 35px rgba(99, 255, 183, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(99,255,183,.10), transparent 30%),
+        radial-gradient(circle at 85% 10%, rgba(84,217,255,.08), transparent 26%),
+        radial-gradient(circle at 50% 80%, rgba(157,123,255,.06), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,.95), transparent 95%);
+      z-index: -1;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: -20%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,255,183,.18), transparent);
+      box-shadow: 0 0 25px rgba(99,255,183,.14);
+      pointer-events: none;
+      animation: scan 9s linear infinite;
+      z-index: 10;
+    }
+
+    @keyframes scan {
+      from { transform: translateY(0); opacity: 0; }
+      10% { opacity: 1; }
+      60% { opacity: 1; }
+      to { transform: translateY(140vh); opacity: 0; }
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+
+    .wrap {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: rgba(5, 7, 10, 0.72);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .nav {
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      font-weight: 900;
+      letter-spacing: .16em;
+      font-size: 14px;
+    }
+
+    .brand-mark {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 12px rgba(99,255,183,.9);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .nav-links a {
+      padding: 9px 12px;
+      border-radius: 8px;
+      transition: .2s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+      background: rgba(99,255,183,.06);
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 11px;
+      color: var(--green);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 12px rgba(99,255,183,.95);
+    }
+
+    .hero {
+      padding: 92px 0 55px;
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 40px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--green);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .19em;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 28px;
+      height: 1px;
+      background: currentColor;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(46px, 7vw, 86px);
+      line-height: .92;
+      letter-spacing: -.055em;
+    }
+
+    .grad {
+      background: linear-gradient(100deg, var(--text), var(--green) 45%, var(--cyan));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero p {
+      max-width: 650px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.75;
+      margin: 22px 0 28px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 17px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      transition: .2s ease;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--green);
+      color: #04110b;
+      border-color: var(--green);
+      font-weight: 800;
+      box-shadow: 0 0 24px rgba(99,255,183,.17);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 34px rgba(99,255,183,.28);
+    }
+
+    .btn-ghost {
+      color: var(--text);
+      background: rgba(255,255,255,.025);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(99,255,183,.055);
+      border-color: rgba(99,255,183,.32);
+    }
+
+    .terminal {
+      position: relative;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(14,20,27,.94), rgba(5,8,11,.97));
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .terminal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .lights {
+      display: flex;
+      gap: 6px;
+    }
+
+    .light {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #25302a;
+    }
+
+    .terminal-body {
+      padding: 20px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.9;
+      min-height: 320px;
+    }
+
+    .line { color: #acc0b6; }
+    .prompt { color: var(--green); }
+    .cyan { color: var(--cyan); }
+    .purple { color: var(--purple); }
+    .muted { color: var(--muted); }
+    .cursor {
+      display: inline-block;
+      width: 7px;
+      height: 14px;
+      vertical-align: -2px;
+      background: var(--green);
+      animation: blink 1s steps(1) infinite;
+    }
+
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .section {
+      padding: 32px 0 88px;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 42px);
+      letter-spacing: -.035em;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .shopbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .search {
+      min-height: 48px;
+      width: 100%;
+      border-radius: 10px;
+      padding: 0 15px;
+      border: 1px solid var(--line);
+      background: rgba(11,16,22,.78);
+      color: var(--text);
+      outline: none;
+    }
+
+    .search:focus {
+      border-color: rgba(99,255,183,.42);
+      box-shadow: 0 0 0 3px rgba(99,255,183,.07);
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.02);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 10px 13px;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .chip.active, .chip:hover {
+      color: var(--green);
+      border-color: rgba(99,255,183,.34);
+      background: rgba(99,255,183,.055);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      position: relative;
+      background: linear-gradient(160deg, rgba(15,22,30,.88), rgba(8,12,17,.95));
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 19px;
+      min-height: 250px;
+      display: flex;
+      flex-direction: column;
+      transition: .22s ease;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -45%;
+      background: radial-gradient(circle, rgba(99,255,183,.08), transparent 53%);
+      opacity: 0;
+      transition: .25s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(99,255,183,.3);
+      box-shadow: 0 18px 45px rgba(0,0,0,.26);
+    }
+
+    .card:hover::before { opacity: 1; }
+
+    .tag {
+      width: fit-content;
+      color: var(--green);
+      border: 1px solid rgba(99,255,183,.22);
+      background: rgba(99,255,183,.05);
+      border-radius: 999px;
+      padding: 6px 8px;
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .card h3 {
+      margin: 17px 0 7px;
+      font-size: 21px;
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+      margin: 0 0 18px;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: auto;
+    }
+
+    .price {
+      font-weight: 800;
+      font-size: 20px;
+    }
+
+    .price small {
+      font-weight: 500;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .buy {
+      min-height: 40px;
+      padding: 0 13px;
+      border-radius: 9px;
+      border: 1px solid rgba(99,255,183,.28);
+      color: var(--green);
+      background: transparent;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .buy:hover {
+      background: var(--green);
+      color: #04110b;
+    }
+
+    .empty {
+      display: none;
+      padding: 24px;
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .banner {
+      margin-top: 28px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      background: linear-gradient(100deg, rgba(99,255,183,.05), rgba(84,217,255,.035));
+    }
+
+    .banner strong { display: block; margin-bottom: 5px; }
+    .banner span { color: var(--muted); font-size: 12px; }
+
+    footer {
+      padding: 0 0 35px;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .notice {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 30;
+      min-width: 260px;
+      max-width: calc(100vw - 36px);
+      padding: 13px 15px;
+      border: 1px solid rgba(99,255,183,.24);
+      border-radius: 12px;
+      background: rgba(8,13,17,.94);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 15px 50px rgba(0,0,0,.4);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: .24s ease;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .notice.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; padding-top: 65px; }
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .wrap { width: min(100% - 22px, 1180px); }
+      .nav-links { display: none; }
+      .status { font-size: 10px; }
+      .hero { padding-bottom: 32px; }
+      .hero p { font-size: 15px; }
+      .grid { grid-template-columns: 1fr; }
+      .shopbar { grid-template-columns: 1fr; }
+      .banner { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap nav">
+      <a class="brand" href="#">
+        <span class="brand-mark"></span>
+        NEON NODE
+      </a>
+      <nav class="nav-links">
+        <a href="#store">Store</a>
+        <a href="#systems">Systems</a>
+        <a href="#status">Status</a>
+      </nav>
+      <div class="status"><span class="dot"></span> Network online</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="wrap hero" id="systems">
+      <div>
+        <div class="eyebrow">Underground digital market</div>
+        <h1>TOOLS FOR THE<br><span class="grad">NIGHT SHIFT.</span></h1>
+        <p>
+          Una tienda cyberpunk para utilidades digitales, herramientas de laboratorio y experiencias
+          de demostración. Estética agresiva, catálogo claro y cero pinta de plantilla genérica.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#store">Explorar catálogo</a>
+          <a class="btn btn-ghost" href="#status">Ver estado del sistema</a>
+        </div>
+      </div>
+
+      <div class="terminal" aria-label="Terminal de demostración">
+        <div class="terminal-head">
+          <div class="lights"><span class="light"></span><span class="light"></span><span class="light"></span></div>
+          <span>node-console</span>
+          <span class="cyan">secure</span>
+        </div>
+        <div class="terminal-body">
+          <div class="line"><span class="prompt">neo@node</span>:~$ boot --store</div>
+          <div class="line muted">loading interface...</div>
+          <div class="line muted">checking catalog integrity...</div>
+          <div class="line"><span class="cyan">[OK]</span> catalog online</div>
+          <div class="line"><span class="cyan">[OK]</span> payment gateway demo</div>
+          <div class="line"><span class="cyan">[OK]</span> session shield</div>
+          <br>
+          <div class="line"><span class="purple">node</span>@store:~$ select --mode neon</div>
+          <div class="line">visual profile loaded.</div>
+          <div class="line">welcome to the night shift<span class="cursor"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap section" id="store">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Catalog</div>
+          <h2>Digital inventory</h2>
+        </div>
+        <p>Demo storefront · no real transactions enabled</p>
+      </div>
+
+      <div class="shopbar">
+        <input class="search" id="search" type="search" placeholder="Buscar una herramienta..." autocomplete="off">
+        <div class="chips">
+          <button class="chip active" data-filter="all">All</button>
+          <button class="chip" data-filter="lab">Lab</button>
+          <button class="chip" data-filter="utility">Utility</button>
+          <button class="chip" data-filter="premium">Premium</button>
+        </div>
+      </div>
+
+      <div class="grid" id="grid">
+        <article class="card" data-category="premium" data-name="phantom suite">
+          <span class="tag">Premium</span>
+          <h3>Phantom Suite</h3>
+          <p>Panel visual de laboratorio con módulos ficticios, perfiles, logs y consola de demostración.</p>
+          <div class="meta">
+            <div class="price">USD 19 <small>/ license</small></div>
+            <button class="buy" data-item="Phantom Suite">View</button>
+          </div>
+        </article>
+
+        <article class="card" data-category="lab" data-name="ghost terminal">
+          <span class="tag">Lab</span>
+          <h3>Ghost Terminal</h3>
+          <p>Terminal interactiva de entrenamiento con comandos simulados y feedback visual en tiempo real.</p>
+          <div class="meta">
+            <div class="price">USD 12 <small>/ license</small></div>
+            <button class="buy" data-item="Ghost Terminal">View</button>
+          </div>
+        </article>
+
+        <article class="card" data-category="utility" data-name="packet forge">
+          <span class="tag">Utility</span>
+          <h3>Packet Forge</h3>
+          <p>Herramienta de laboratorio para crear y visualizar paquetes de ejemplo en entornos controlados.</p>
+          <div class="meta">
+            <div class="price">USD 9 <small>/ license</small></div>
+            <button class="buy" data-item="Packet Forge">View</button>
+          </div>
+        </article>
+
+        <article class="card" data-category="utility" data-name="signal mapper">
+          <span class="tag">Utility</span>
+          <h3>Signal Mapper</h3>
+          <p>Dashboard de monitoreo ficticio para practicar lectura de eventos, métricas y alertas.</p>
+          <div class="meta">
+            <div class="price">USD 7 <small>/ license</small></div>
+            <button class="buy" data-item="Signal Mapper">View</button>
+          </div>
+        </article>
+
+        <article class="card" data-category="lab" data-name="red room lab">
+          <span class="tag">Lab</span>
+          <h3>Red Room Lab</h3>
+          <p>Entorno visual de entrenamiento inspirado en laboratorios cyber, con retos completamente simulados.</p>
+          <div class="meta">
+            <div class="price">USD 15 <small>/ license</small></div>
+            <button class="buy" data-item="Red Room Lab">View</button>
+          </div>
+        </article>
+
+        <article class="card" data-category="premium" data-name="zero trace ui">
+          <span class="tag">Premium</span>
+          <h3>Zero Trace UI</h3>
+          <p>Kit premium de interfaz cyber para proyectos personales, demos, portafolios y paneles de control.</p>
+          <div class="meta">
+            <div class="price">USD 24 <small>/ license</small></div>
+            <button class="buy" data-item="Zero Trace UI">View</button>
+          </div>
+        </article>
+      </div>
+
+      <div class="empty" id="empty">No hay módulos que coincidan con tu búsqueda.</div>
+
+      <div class="banner" id="status">
+        <div>
+          <strong>System status: operational</strong>
+          <span>Catalog synced · Interface stable · Demo checkout enabled</span>
+        </div>
+        <span class="status"><span class="dot"></span> 99.9% uptime</span>
+      </div>
+    </section>
+  </main>
+
+  <div class="notice" id="notice"></div>
+
+  <footer class="wrap">
+    NEON NODE · Fictional cyber storefront demo
+  </footer>
+
+  <script>
+    const search = document.getElementById("search");
+    const cards = [...document.querySelectorAll(".card")];
+    const chips = [...document.querySelectorAll(".chip")];
+    const empty = document.getElementById("empty");
+    const notice = document.getElementById("notice");
+    let activeFilter = "all";
+    let noticeTimer;
+
+    function updateCatalog() {
+      const term = search.value.trim().toLowerCase();
+      let visible = 0;
+
+      cards.forEach(card => {
+        const matchesFilter = activeFilter === "all" || card.dataset.category === activeFilter;
+        const matchesSearch = card.dataset.name.includes(term);
+        const show = matchesFilter && matchesSearch;
+        card.style.display = show ? "flex" : "none";
+        if (show) visible++;
+      });
+
+      empty.style.display = visible ? "none" : "block";
+    }
+
+    search.addEventListener("input", updateCatalog);
+
+    chips.forEach(chip => {
+      chip.addEventListener("click", () => {
+        chips.forEach(x => x.classList.remove("active"));
+        chip.classList.add("active");
+        activeFilter = chip.dataset.filter;
+        updateCatalog();
+      });
+    });
+
+    document.querySelectorAll(".buy").forEach(button => {
+      button.addEventListener("click", () => {
+        const item = button.dataset.item;
+        notice.textContent = item + " seleccionado. El checkout está en modo demo.";
+        notice.classList.add("show");
+        clearTimeout(noticeTimer);
+        noticeTimer = setTimeout(() => notice.classList.remove("show"), 3200);
+      });
+    });
+  </script>
+</body>
+</html>
