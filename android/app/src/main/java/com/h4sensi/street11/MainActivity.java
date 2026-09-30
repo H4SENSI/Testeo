@@ -11,7 +11,6 @@ import android.view.WindowInsetsController;
 public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Request the feature before Activity adds any content.
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         super.onCreate(savedInstanceState);
 
@@ -20,17 +19,27 @@ public class MainActivity extends Activity {
                 WindowManagerFlags.FLAG_FULLSCREEN
         );
 
-        hideSystemUi();
         setContentView(new GameView(this));
+        hideSystemUi();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            hideSystemUi();
+        }
     }
 
     private void hideSystemUi() {
-        View decor = getWindow().getDecorView();
+        final View decor = getWindow().getDecorView();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsController controller = decor.getWindowInsetsController();
+            final WindowInsetsController controller = decor.getWindowInsetsController();
             if (controller != null) {
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                controller.hide(
+                        WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars()
+                );
                 controller.setSystemBarsBehavior(
                         WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 );
@@ -47,8 +56,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Keeps the activity source compatible without depending on framework constants
-    // unavailable on older SDK levels.
     private static final class WindowManagerFlags {
         static final int FLAG_FULLSCREEN = 0x00000400;
     }
