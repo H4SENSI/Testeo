@@ -2,141 +2,121 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MARÉA</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>VECTOR//9</title>
 <style>
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden}
-body{background:#061a2d;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#f7fbff}
-#ocean{position:fixed;inset:0;width:100%;height:100%;display:block}
-.ui{position:fixed;inset:0;pointer-events:none}
-.top{position:absolute;left:28px;right:28px;top:24px;display:flex;justify-content:space-between;align-items:flex-start}
-.logo{font-size:13px;font-weight:800;letter-spacing:.28em;text-transform:uppercase}
-.readout{font-size:11px;line-height:1.6;text-align:right;opacity:.8}
-.panel{position:absolute;left:28px;bottom:28px;width:min(340px,calc(100% - 56px));padding:20px 20px 18px;border:1px solid rgba(255,255,255,.22);background:rgba(1,12,23,.34);backdrop-filter:blur(12px);border-radius:18px;pointer-events:auto;box-shadow:0 18px 50px rgba(0,0,0,.22)}
-.panel h1{margin:0 0 6px;font-size:42px;line-height:.9;letter-spacing:-.07em}
-.panel p{margin:0 0 18px;max-width:270px;font-size:12px;line-height:1.5;opacity:.72}
-.controls{display:grid;grid-template-columns:1fr auto;gap:11px;align-items:center}
-input[type=range]{width:100%;accent-color:white}
-button{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:white;border-radius:999px;padding:8px 11px;font-size:11px;cursor:pointer}
-.hint{position:absolute;right:28px;bottom:29px;font-size:10px;opacity:.52;letter-spacing:.08em;text-transform:uppercase}
-.badge{display:inline-flex;gap:8px;align-items:center;font-size:10px;text-transform:uppercase;letter-spacing:.12em;opacity:.7;margin-bottom:14px}
-.dot{width:7px;height:7px;border-radius:50%;background:#8be3ff;box-shadow:0 0 16px #8be3ff}
-@media(max-width:700px){.top{left:18px;right:18px;top:18px}.panel{left:18px;bottom:18px;width:calc(100% - 36px)}.hint{display:none}.panel h1{font-size:35px}}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090909;color:#fff;font-family:Arial,Helvetica,sans-serif}
+body{touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+.hud{position:fixed;inset:0;pointer-events:none;padding:20px}
+.top{display:flex;justify-content:space-between;font:700 11px/1.5 monospace;letter-spacing:.08em}
+.left{display:flex;gap:22px}.label{opacity:.4}.value{font-size:14px}
+#start{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.76);z-index:5}
+.card{width:min(520px,calc(100% - 32px));padding:30px;border:1px solid #555;background:#0e0e0e;box-shadow:0 25px 80px #000}
+.card .tiny{font:10px monospace;color:#888;letter-spacing:.2em}
+h1{font-size:clamp(48px,11vw,100px);line-height:.75;letter-spacing:-.09em;margin:20px 0}
+.card p{color:#aaa;line-height:1.5;max-width:390px;font-size:13px}
+button{background:#fff;color:#000;border:0;padding:13px 18px;font-weight:800;cursor:pointer}
+#gameover{display:none}
+.corner{position:fixed;right:20px;bottom:18px;font:9px monospace;opacity:.35}
+.mobile{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);gap:8px;z-index:2}
+.mobile button{width:52px;height:44px;background:rgba(255,255,255,.12);color:#fff;border:1px solid #555}
+@media(max-width:700px){.mobile{display:grid;grid-template-columns:52px 52px 52px}.mobile button:nth-child(1){grid-column:2}.mobile button:nth-child(2){grid-column:1;grid-row:2}.mobile button:nth-child(3){grid-column:2;grid-row:2}.mobile button:nth-child(4){grid-column:3;grid-row:2}}
 </style>
 </head>
 <body>
-<canvas id="ocean"></canvas>
-<div class="ui">
-  <div class="top">
-    <div class="logo">MARÉA</div>
-    <div class="readout"><span id="count">000</span> habitantes<br><span id="depth">020</span> m de profundidad</div>
-  </div>
-  <div class="panel">
-    <div class="badge"><span class="dot"></span> ecosistema vivo</div>
-    <h1>Un océano<br>en tu pantalla.</h1>
-    <p>Mové el mouse, tocá la pantalla o hacé clic para alterar las corrientes. Sí, básicamente te doy un acuario porque claramente eso era lo que faltaba.</p>
-    <div class="controls">
-      <input id="flow" type="range" min="0" max="100" value="55" aria-label="Corriente">
-      <button id="spawn">+ vida</button>
-    </div>
-  </div>
-  <div class="hint">mover · tocar · observar</div>
+<canvas id="c"></canvas>
+<div class="hud">
+ <div class="top">
+  <div class="left"><div><span class="label">SCORE</span><br><span id="score" class="value">000000</span></div><div><span class="label">SECTOR</span><br><span id="sector" class="value">01</span></div><div><span class="label">CORE</span><br><span id="core" class="value">100%</span></div></div>
+  <div style="text-align:right"><span class="label">VECTOR//9</span><br><span id="status">READY</span></div>
+ </div>
 </div>
+<div class="corner">ARROWS / WASD · RECOLECTÁ · SOBREVIVÍ</div>
+
+<div id="start"><div class="card">
+ <div class="tiny">SIMULACIÓN DE REFLEJOS // 09</div>
+ <h1>VECTOR<br>9</h1>
+ <p>Un juego de supervivencia de una sola pantalla. Recolectá los núcleos blancos, evitá los cazadores rojos y atravesá sectores cada vez más rápidos. Nada de formularios. Por fin una página que hace algo.</p>
+ <button id="play">INICIAR SIMULACIÓN</button>
+</div></div>
+<div id="gameover"><div class="card">
+ <div class="tiny">SEÑAL PERDIDA</div><h1 id="final">000000</h1>
+ <p id="reason">El núcleo colapsó.</p><button id="retry">REINTENTAR</button>
+</div></div>
+<div class="mobile"><button data-k="up">▲</button><button data-k="left">◀</button><button data-k="down">▼</button><button data-k="right">▶</button></div>
+
 <script>
-const c=document.getElementById('ocean'),ctx=c.getContext('2d');
-const countEl=document.getElementById('count'),depthEl=document.getElementById('depth');
-let W=innerWidth,H=innerHeight,D=devicePixelRatio||1,t=0,mouse={x:-9999,y:-9999,active:false};
-const flow=document.getElementById('flow'),spawn=document.getElementById('spawn');
-let fish=[],bubbles=[],plants=[],ripples=[];
-const rand=(a,b)=>Math.random()*(b-a)+a;
-function resize(){
-  W=innerWidth;H=innerHeight;D=Math.min(2,devicePixelRatio||1);
-  c.width=W*D;c.height=H*D;c.style.width=W+'px';c.style.height=H+'px';ctx.setTransform(D,0,0,D,0,0);
-  plants=Array.from({length:Math.max(10,Math.floor(W/90))},(_,i)=>({x:i*90+rand(-30,30),h:rand(45,120),phase:rand(0,7)}));
+const cv=document.getElementById('c'),x=cv.getContext('2d'),scoreEl=document.getElementById('score'),sectorEl=document.getElementById('sector'),coreEl=document.getElementById('core'),statusEl=document.getElementById('status');
+let W,H,D,raf,last=0,running=false,score=0,sector=1,core=100,keys={},player,shards=[],hunters=[],particles=[],shake=0,spawnClock=0,need=0;
+const R=(a,b)=>Math.random()*(b-a)+a;
+function size(){W=innerWidth;H=innerHeight;D=Math.min(2,devicePixelRatio||1);cv.width=W*D;cv.height=H*D;cv.style.width=W+'px';cv.style.height=H+'px';x.setTransform(D,0,0,D,0,0)}
+function reset(){
+ score=0;sector=1;core=100;need=0;particles=[];hunters=[];shards=[];
+ player={x:W/2,y:H/2,r:9,vx:0,vy:0};
+ for(let i=0;i<4;i++)addShard(); spawnClock=0;statusEl.textContent='RUNNING';
 }
-function makeFish(x=rand(0,W),y=rand(100,H*.83),scale=rand(.55,1.35)){
-  fish.push({x,y,vx:rand(.25,.9),vy:rand(-.12,.12),size:scale,color:Math.random()<.45?'#ffd166':Math.random()<.5?'#ef7b8b':'#8be3ff',phase:rand(0,7),flip:false});
+function addShard(){
+ let a=R(0,Math.PI*2),d=R(90,Math.min(W,H)*.42);
+ shards.push({x:W/2+Math.cos(a)*d,y:H/2+Math.sin(a)*d,r:5,p:0});
 }
-function seed(){
-  fish=[];bubbles=[];ripples=[];
-  for(let i=0;i<38;i++)makeFish();
-  for(let i=0;i<25;i++)bubbles.push({x:rand(0,W),y:rand(0,H),r:rand(1,4),v:rand(.2,.8)});
+function addHunter(){
+ let side=Math.floor(R(0,4)), px=side%2?R(0,W):side===0?-30:W+30, py=side%2?(side===1?-30:H+30):R(0,H);
+ hunters.push({x:px,y:py,r:R(7,12),v:R(65,90)+sector*12,phase:R(0,7)});
 }
-function drawGradient(){
-  const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#0a3c5f');g.addColorStop(.55,'#07506c');g.addColorStop(1,'#021623');
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  const sun=ctx.createRadialGradient(W*.72,H*.05,5,W*.72,H*.05,Math.min(W,H)*.7);
-  sun.addColorStop(0,'rgba(255,255,255,.24)');sun.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle=sun;ctx.fillRect(0,0,W,H);
+function burst(px,py,col,n=10){
+ for(let i=0;i<n;i++)particles.push({x:px,y:py,vx:R(-100,100),vy:R(-100,100),life:1,col});
 }
-function drawRays(){
-  ctx.save();ctx.globalAlpha=.075;
-  for(let i=-4;i<7;i++){
-    ctx.beginPath();ctx.moveTo(W*.72,H*.05);ctx.lineTo(W*.72+i*140,H);ctx.lineTo(W*.72+i*70,H);ctx.closePath();ctx.fillStyle='#dff8ff';ctx.fill();
-  }
-  ctx.restore();
+function collide(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+b.r}
+function nextSector(){
+ sector++;need=0;core=Math.min(100,core+12);for(let i=0;i<sector+2;i++)addShard();burst(player.x,player.y,'#fff',25);shake=12;
 }
-function drawPlants(){
-  ctx.save();ctx.strokeStyle='rgba(27,126,102,.7)';ctx.lineWidth=5;ctx.lineCap='round';
-  plants.forEach(p=>{
-    ctx.beginPath();ctx.moveTo(p.x,H);
-    const sway=Math.sin(t*.0014+p.phase)*18;
-    ctx.quadraticCurveTo(p.x+sway*.4,H-p.h*.55,p.x+sway,H-p.h);
-    ctx.stroke();
-    ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(p.x+sway*.5,H-p.h*.55);ctx.quadraticCurveTo(p.x+sway+18,H-p.h*.68,p.x+sway+24,H-p.h*.83);ctx.stroke();
-  });ctx.restore();
+function end(reason){
+ running=false;cancelAnimationFrame(raf);document.getElementById('final').textContent=String(score).padStart(6,'0');document.getElementById('reason').textContent=reason;document.getElementById('gameover').style.display='grid';statusEl.textContent='OFFLINE';
 }
-function drawFish(f){
-  ctx.save();ctx.translate(f.x,f.y);ctx.scale(f.flip?-f.size:f.size,f.size);
-  ctx.globalAlpha=.9;
-  ctx.fillStyle=f.color;ctx.beginPath();ctx.ellipse(0,0,17,9,0,0,Math.PI*2);ctx.fill();
-  ctx.beginPath();ctx.moveTo(-13,0);ctx.lineTo(-27,-10);ctx.lineTo(-25,2);ctx.lineTo(-27,11);ctx.closePath();ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(9,-2.5,2.2,0,Math.PI*2);ctx.fill();
-  ctx.restore();
+function draw(){
+ x.fillStyle='#080808';x.fillRect(0,0,W,H);
+ // grid
+ x.strokeStyle='rgba(255,255,255,.055)';x.lineWidth=1;x.beginPath();
+ const gs=40,ox=((player?.x||0)*.15)%gs,oy=((player?.y||0)*.15)%gs;
+ for(let i=-gs;i<W+gs;i+=gs){x.moveTo(i-ox,0);x.lineTo(i-ox,H)}
+ for(let j=-gs;j<H+gs;j+=gs){x.moveTo(0,j-oy);x.lineTo(W,j)}
+ x.stroke();
+ // sector lines
+ x.strokeStyle='rgba(255,255,255,.13)';x.beginPath();x.arc(W/2,H/2,Math.min(W,H)*.38,0,Math.PI*2);x.stroke();
+ shards.forEach(s=>{s.p+=.05;let rr=s.r+Math.sin(s.p)*2;x.save();x.translate(s.x,s.y);x.rotate(s.p);x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.moveTo(0,-rr);x.lineTo(rr,0);x.lineTo(0,rr);x.lineTo(-rr,0);x.closePath();x.stroke();x.restore()});
+ hunters.forEach(h=>{x.save();x.translate(h.x,h.y);x.rotate(Math.atan2(player.y-h.y,player.x-h.x));x.fillStyle='#e84a4a';x.beginPath();x.moveTo(h.r*1.7,0);x.lineTo(-h.r,-h.r*.8);x.lineTo(-h.r,h.r*.8);x.closePath();x.fill();x.restore()});
+ if(player){x.save();x.translate(player.x,player.y);x.rotate(Math.atan2(player.vy,player.vx));x.shadowBlur=18;x.shadowColor='#fff';x.fillStyle='#fff';x.beginPath();x.moveTo(15,0);x.lineTo(-9,-7);x.lineTo(-5,0);x.lineTo(-9,7);x.closePath();x.fill();x.restore()}
+ particles.forEach(p=>{x.globalAlpha=Math.max(0,p.life);x.fillStyle=p.col;x.fillRect(p.x,p.y,2,2);x.globalAlpha=1});
 }
-function drawBubbles(){
-  ctx.save();ctx.strokeStyle='rgba(205,246,255,.28)';ctx.lineWidth=1;
-  bubbles.forEach(b=>{ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.stroke()});ctx.restore();
+function loop(now){
+ if(!running)return;let dt=Math.min(.033,(now-last)/1000||.016);last=now;
+ let ax=(keys.right?1:0)-(keys.left?1:0),ay=(keys.down?1:0)-(keys.up?1:0);
+ if(ax||ay){let m=Math.hypot(ax,ay);ax/=m;ay/=m}
+ const accel=430,fric=Math.pow(.0005,dt);
+ player.vx+=ax*accel*dt;player.vy+=ay*accel*dt;player.vx*=fric;player.vy*=fric;
+ const max=170+sector*8;let sp=Math.hypot(player.vx,player.vy);if(sp>max){player.vx=player.vx/sp*max;player.vy=player.vy/sp*max}
+ player.x+=player.vx*dt;player.y+=player.vy*dt;
+ if(player.x<8||player.x>W-8){player.x=Math.max(8,Math.min(W-8,player.x));player.vx*=-.7}
+ if(player.y<8||player.y>H-8){player.y=Math.max(8,Math.min(H-8,player.y));player.vy*=-.7}
+ spawnClock+=dt;if(spawnClock>Math.max(.35,1.7-sector*.09)){spawnClock=0;addHunter()}
+ hunters.forEach(h=>{let dx=player.x-h.x,dy=player.y-h.y,d=Math.hypot(dx,dy)||1;h.x+=dx/d*h.v*dt;h.y+=dy/d*h.v*dt});
+ for(let i=shards.length-1;i>=0;i--)if(collide(player,shards[i])){let s=shards[i];shards.splice(i,1);need++;score+=100*sector;core=Math.min(100,core+2);burst(s.x,s.y,'#fff',14);if(need>=Math.max(4,sector+3))nextSector()}
+ for(const h of hunters)if(collide(player,h)){core-=Math.max(7,12-sector*.2);burst(player.x,player.y,'#e84a4a',18);shake=10}
+ hunters=hunters.filter(h=>Math.hypot(h.x-player.x,h.y-player.y)<Math.max(W,H)*1.3);
+ particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.96;p.vy*=.96;p.life-=dt*1.7});particles=particles.filter(p=>p.life>0);
+ if(core<=0)return end('Los cazadores encontraron tu núcleo. La burocracia espacial ganó.');
+ scoreEl.textContent=String(score).padStart(6,'0');sectorEl.textContent=String(sector).padStart(2,'0');coreEl.textContent=Math.max(0,Math.round(core))+'%';
+ x.save();if(shake){x.translate(R(-shake,shake),R(-shake,shake));shake*=.88;if(shake<.2)shake=0}draw();x.restore();
+ raf=requestAnimationFrame(loop);
 }
-function drawRipples(){
-  ctx.save();ctx.lineWidth=2;
-  ripples.forEach(r=>{ctx.strokeStyle='rgba(255,255,255,'+(1-r.life)+')';ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,Math.PI*2);ctx.stroke()});ctx.restore();
-}
-function addRipple(x,y){
-  ripples.push({x,y,r:4,life:1});
-  for(let i=0;i<3;i++){const f=fish[Math.floor(rand(0,fish.length))];if(f){f.vx+=rand(.6,1.4);f.vy+=rand(-.6,.6);}}
-}
-function tick(now){
-  t=now;drawGradient();drawRays();drawPlants();
-  const current=(Number(flow.value)/100-.5)*.8;
-  fish.forEach(f=>{
-    let ax=current+Math.sin(now*.0007+f.phase)*.045;
-    if(mouse.active){const dx=mouse.x-f.x,dy=mouse.y-f.y,d=Math.hypot(dx,dy)||1;if(d<170){ax+=dx/d*.23;f.vy+=dy/d*.008;}}
-    f.vy+=Math.sin(now*.0013+f.phase)*.002;
-    f.vx+=ax*.008;f.vx=Math.max(.15,Math.min(1.6,f.vx));f.vy*=.992;
-    f.x+=f.vx;f.y+=f.vy;
-    if(f.x>W+45)f.x=-45;
-    if(f.y<H*.12)f.vy+=.03;if(f.y>H*.86)f.vy-=.03;
-    if(Math.random()<.0025)f.flip=!f.flip;
-    drawFish(f);
-  });
-  bubbles.forEach(b=>{b.y-=b.v;if(b.y<-10){b.y=H+10;b.x=rand(0,W)}});drawBubbles();
-  ripples.forEach(r=>{r.r+=2.7;r.life-=.018});ripples=ripples.filter(r=>r.life>0);drawRipples();
-  countEl.textContent=String(fish.length).padStart(3,'0');
-  depthEl.textContent=String(Math.round(20+Number(flow.value)*.42)).padStart(3,'0');
-  requestAnimationFrame(tick);
-}
-addEventListener('resize',()=>{resize();seed()});
-addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;mouse.active=true});
-addEventListener('mouseleave',()=>mouse.active=false);
-addEventListener('touchstart',e=>{const q=e.touches[0];if(q){mouse.x=q.clientX;mouse.y=q.clientY;mouse.active=true;addRipple(mouse.x,mouse.y)}},{passive:true});
-addEventListener('touchmove',e=>{const q=e.touches[0];if(q){mouse.x=q.clientX;mouse.y=q.clientY;addRipple(mouse.x,mouse.y)}},{passive:true});
-addEventListener('click',e=>{if(e.target.closest('.panel'))return;addRipple(e.clientX,e.clientY)});
-spawn.onclick=()=>{for(let i=0;i<5;i++)makeFish(rand(W*.2,W*.8),rand(H*.2,H*.8),rand(.45,1.1));addRipple(W*.5,H*.5)};
-resize();seed();requestAnimationFrame(tick);
+function start(){document.getElementById('start').style.display='none';document.getElementById('gameover').style.display='none';reset();last=performance.now();running=true;raf=requestAnimationFrame(loop)}
+addEventListener('resize',()=>{size();if(!running)draw()});
+addEventListener('keydown',e=>{let k=e.key.toLowerCase();if(['arrowup','w'].includes(k))keys.up=true;if(['arrowdown','s'].includes(k))keys.down=true;if(['arrowleft','a'].includes(k))keys.left=true;if(['arrowright','d'].includes(k))keys.right=true});
+addEventListener('keyup',e=>{let k=e.key.toLowerCase();if(['arrowup','w'].includes(k))keys.up=false;if(['arrowdown','s'].includes(k))keys.down=false;if(['arrowleft','a'].includes(k))keys.left=false;if(['arrowright','d'].includes(k))keys.right=false});
+document.querySelectorAll('.mobile button').forEach(b=>{const k=b.dataset.k;b.onpointerdown=e=>{e.preventDefault();keys[k]=true};b.onpointerup=b.onpointercancel=b.onpointerleave=()=>keys[k]=false});
+document.getElementById('play').onclick=start;document.getElementById('retry').onclick=start;
+size();draw();
 </script>
 </body>
 </html>
