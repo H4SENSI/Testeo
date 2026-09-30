@@ -1,0 +1,11 @@
+{
+  "name": "testeo-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend HTTP para el proyecto Testeo",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}
