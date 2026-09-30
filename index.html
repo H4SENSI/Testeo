@@ -3,239 +3,82 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Una experiencia interactiva experimental.">
-<title>NOCTILUX</title>
+<title>CASA 27</title>
 <style>
-:root{
-  --bg:#08090c;
-  --panel:rgba(16,18,25,.72);
-  --line:rgba(255,255,255,.09);
-  --text:#f4f1e9;
-  --muted:#9296a2;
-  --accent:#f7c66b;
-  --accent2:#d98cff;
-  --radius:22px;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{
-  margin:0;min-height:100vh;color:var(--text);
-  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  background:
-    radial-gradient(circle at 18% 12%,rgba(217,140,255,.14),transparent 28%),
-    radial-gradient(circle at 82% 20%,rgba(247,198,107,.12),transparent 25%),
-    radial-gradient(circle at 50% 90%,rgba(121,96,255,.09),transparent 32%),
-    var(--bg);
-  overflow-x:hidden;
-}
-body:before{
-  content:"";position:fixed;inset:0;pointer-events:none;opacity:.28;
-  background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);
-  background-size:42px 42px;
-  mask-image:linear-gradient(to bottom,#000,transparent 90%);
-}
-a{color:inherit;text-decoration:none}
-button{font:inherit}
-.wrap{width:min(1160px,calc(100% - 34px));margin:auto}
-nav{
-  position:sticky;top:0;z-index:20;
-  backdrop-filter:blur(18px);
-  background:rgba(8,9,12,.62);
-  border-bottom:1px solid var(--line);
-}
-.navbar{min-height:76px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-.logo{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:900;letter-spacing:.22em}
-.logo i{display:block;width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 22px rgba(247,198,107,.9)}
-.links{display:flex;gap:8px;color:var(--muted);font-size:13px}
-.links a{padding:9px 12px;border-radius:10px;transition:.2s}
-.links a:hover{background:rgba(255,255,255,.05);color:var(--text)}
-.hero{padding:92px 0 46px;display:grid;grid-template-columns:1.12fr .88fr;align-items:center;gap:50px}
-.kicker{display:inline-flex;gap:9px;align-items:center;text-transform:uppercase;letter-spacing:.18em;font-size:11px;color:var(--accent);margin-bottom:18px}
-.kicker:before{content:"";width:28px;height:1px;background:currentColor}
-h1{font-size:clamp(52px,8vw,94px);line-height:.9;letter-spacing:-.065em;margin:0}
-h1 span{
-  background:linear-gradient(100deg,var(--text),var(--accent),var(--accent2));
-  -webkit-background-clip:text;background-clip:text;color:transparent
-}
-.hero p{max-width:620px;color:var(--muted);font-size:16px;line-height:1.8;margin:25px 0 28px}
-.actions{display:flex;flex-wrap:wrap;gap:11px}
-.btn{
-  min-height:46px;padding:0 17px;display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);border-radius:12px;transition:.2s;cursor:pointer
-}
-.btn.primary{background:var(--text);color:#0a0b0e;border-color:var(--text);font-weight:800}
-.btn.primary:hover{transform:translateY(-2px);box-shadow:0 15px 38px rgba(255,255,255,.13)}
-.btn.ghost{background:rgba(255,255,255,.025)}
-.btn.ghost:hover{background:rgba(255,255,255,.07)}
-.orbit{
-  aspect-ratio:1;border:1px solid var(--line);border-radius:30px;position:relative;
-  background:radial-gradient(circle at center,rgba(247,198,107,.08),transparent 52%),rgba(255,255,255,.018);
-  overflow:hidden;box-shadow:0 30px 100px rgba(0,0,0,.34)
-}
-.orbit:before,.orbit:after{
-  content:"";position:absolute;inset:15%;border:1px solid rgba(255,255,255,.08);border-radius:50%
-}
-.orbit:after{inset:31%;border-color:rgba(247,198,107,.15);box-shadow:0 0 80px rgba(247,198,107,.08)}
-.core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,#fff,#f7c66b 26%,#8d65ba 67%,#221b32);
-  box-shadow:0 0 70px rgba(247,198,107,.34),0 0 120px rgba(217,140,255,.17)
-}
-.sat{position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 0 18px currentColor}
-.s1{color:var(--accent);left:18%;top:29%}.s2{color:var(--accent2);right:17%;top:61%}.s3{color:#85d8ff;left:35%;bottom:13%}.s4{color:#fff;right:27%;top:20%}
-.ring{position:absolute;left:50%;top:50%;width:78%;height:29%;transform:translate(-50%,-50%) rotate(-18deg);border:1px solid rgba(255,255,255,.1);border-radius:50%;animation:spin 16s linear infinite}
-.ring.r2{width:65%;height:76%;transform:translate(-50%,-50%) rotate(43deg);animation-duration:22s;animation-direction:reverse}
-@keyframes spin{to{transform:translate(-50%,-50%) rotate(342deg)}}
-.section{padding:42px 0 88px}
-.head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:22px}
-.head h2{font-size:clamp(28px,4vw,43px);margin:0;letter-spacing:-.04em}
-.head p{margin:0;color:var(--muted);font-size:12px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.card{
-  position:relative;padding:20px;min-height:255px;border:1px solid var(--line);border-radius:var(--radius);
-  background:linear-gradient(150deg,rgba(24,26,34,.8),rgba(12,13,18,.92));overflow:hidden;transition:.22s
-}
-.card:before{content:"";position:absolute;width:170px;height:170px;right:-65px;top:-55px;border-radius:50%;background:radial-gradient(circle,rgba(247,198,107,.16),transparent 68%);transition:.25s}
-.card:hover{transform:translateY(-5px);border-color:rgba(247,198,107,.23);box-shadow:0 22px 50px rgba(0,0,0,.27)}
-.card:hover:before{transform:scale(1.35)}
-.num{font-size:10px;letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
-.card h3{font-size:23px;margin:35px 0 9px;letter-spacing:-.03em}
-.card p{color:var(--muted);font-size:13px;line-height:1.7;max-width:31ch;margin:0}
-.card .arrow{position:absolute;right:19px;bottom:17px;width:34px;height:34px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;color:var(--accent);transition:.2s}
-.card:hover .arrow{transform:rotate(45deg);background:rgba(247,198,107,.08)}
-.panel{
-  border:1px solid var(--line);border-radius:var(--radius);padding:23px;
-  background:rgba(255,255,255,.018);display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center
-}
-.progress{height:7px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin-top:16px}
-.progress b{display:block;height:100%;width:72%;border-radius:99px;background:linear-gradient(90deg,var(--accent2),var(--accent));animation:load 2.8s ease-in-out infinite alternate}
-@keyframes load{from{width:64%}to{width:86%}}
-.stat{text-align:right}.stat strong{font-size:38px;display:block}.stat span{font-size:11px;color:var(--muted)}
-footer{padding:0 0 34px;text-align:center;color:#707582;font-size:11px}
-.modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);z-index:50;padding:18px}
-.modal.show{display:grid}
-.dialog{width:min(540px,100%);border:1px solid var(--line);border-radius:24px;padding:25px;background:#101118;box-shadow:0 35px 100px rgba(0,0,0,.55)}
-.dialog-top{display:flex;justify-content:space-between;align-items:center;gap:15px}
-.close{border:1px solid var(--line);background:transparent;color:var(--muted);width:36px;height:36px;border-radius:50%;cursor:pointer}
-.dialog h3{font-size:28px;margin:24px 0 8px}.dialog p{color:var(--muted);line-height:1.7;font-size:14px;margin-bottom:20px}
-#clock{font-variant-numeric:tabular-nums}
-@media(max-width:900px){.hero{grid-template-columns:1fr}.orbit{max-width:600px;margin:auto}.grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:640px){.wrap{width:calc(100% - 22px)}.links{display:none}.hero{padding-top:64px}.grid{grid-template-columns:1fr}.panel{grid-template-columns:1fr}.stat{text-align:left}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:#eeeae2;color:#171717;font-family:Georgia,"Times New Roman",serif}
+.wrap{width:min(1120px,calc(100% - 36px));margin:auto}
+header{padding:22px 0;border-bottom:1px solid #171717}
+nav{display:flex;align-items:center;justify-content:space-between}
+.brand{font-size:22px;font-weight:700;letter-spacing:-.04em}
+nav a{font-family:Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin-left:22px}
+.hero{min-height:78vh;display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;padding:65px 0}
+.kicker{font-family:Arial,sans-serif;font-size:10px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:25px}
+h1{font-size:clamp(58px,9vw,120px);line-height:.78;letter-spacing:-.08em;font-weight:500;margin:0}
+h1 em{font-weight:400}
+.lead{font-size:19px;line-height:1.5;max-width:450px;margin:35px 0}
+.circle{height:min(530px,75vw);border-radius:50%;background:#c7d5bc;position:relative;overflow:hidden}
+.circle:before{content:"";position:absolute;width:60%;height:120%;left:20%;top:-10%;background:#d9a75c;transform:rotate(18deg);border-radius:50%}
+.circle:after{content:"27";position:absolute;right:9%;bottom:5%;font:700 clamp(70px,12vw,150px)/1 Arial,sans-serif;color:#eeeae2;letter-spacing:-.1em}
+.flower{position:absolute;z-index:2;left:19%;top:28%;width:44%;height:44%;border-radius:50%;background:#171717;box-shadow:50px -40px 0 -15px #171717,-50px 35px 0 -22px #171717}
+.flower i{position:absolute;width:42%;height:42%;background:#e9d7b5;border-radius:50%}
+.flower i:nth-child(1){left:5%;top:30%}.flower i:nth-child(2){right:5%;top:15%}.flower i:nth-child(3){left:30%;bottom:2%}
+section{padding:80px 0;border-top:1px solid #171717}
+.section-title{font-size:13px;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.15em;margin-bottom:45px}
+.columns{display:grid;grid-template-columns:1fr 2fr;gap:50px}
+.big{font-size:42px;line-height:1.02;letter-spacing:-.05em;margin:0}
+.copy{font-size:17px;line-height:1.65;margin:0;max-width:650px}
+.list{margin-top:60px;border-top:1px solid #171717}
+.row{display:grid;grid-template-columns:70px 1fr auto;gap:20px;padding:22px 0;border-bottom:1px solid #171717;align-items:center}
+.row span:first-child{font:11px Arial,sans-serif;color:#777}
+.row strong{font-size:22px;font-weight:500}
+.row button{border:0;background:none;text-decoration:underline;cursor:pointer;font:12px Arial,sans-serif}
+.note{background:#171717;color:#eeeae2;padding:65px 7%;margin-top:70px}
+.note h2{font-size:clamp(38px,6vw,72px);font-weight:400;line-height:.9;letter-spacing:-.06em;margin:0 0 25px}
+.note p{max-width:520px;font-size:16px;line-height:1.6;color:#c7c3ba}
+footer{padding:25px 0 45px;font:10px Arial,sans-serif;text-transform:uppercase;letter-spacing:.13em;display:flex;justify-content:space-between}
+#toast{position:fixed;left:50%;bottom:25px;transform:translate(-50%,20px);background:#171717;color:#eeeae2;padding:13px 18px;font:12px Arial,sans-serif;opacity:0;pointer-events:none;transition:.25s}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:760px){nav .links{display:none}.hero{grid-template-columns:1fr;padding:50px 0}.circle{height:88vw}.columns{grid-template-columns:1fr;gap:25px}.row{grid-template-columns:45px 1fr}.row button{display:none}footer{gap:20px;flex-direction:column}}
 </style>
 </head>
 <body>
-<nav>
-  <div class="wrap navbar">
-    <a class="logo" href="#"><i></i>NOCTILUX</a>
-    <div class="links"><a href="#grid">Index</a><a href="#pulse">Pulse</a><a href="#about">Open</a></div>
-    <div style="font-size:11px;color:var(--muted)" id="clock">--:--:--</div>
-  </div>
-</nav>
+<header><div class="wrap"><nav><div class="brand">CASA 27</div><div class="links"><a href="#idea">Idea</a><a href="#objetos">Objetos</a><a href="#final">Final</a></div></nav></div></header>
 
 <main>
-<section class="wrap hero">
-  <div>
-    <div class="kicker">Experimental interface / 04</div>
-    <h1>There is more<br>after <span>midnight.</span></h1>
-    <p>Una pequeña anomalía digital escondida en una página estática. Tocá, buscá, explorá. No todo tiene que tener una explicación razonable. La humanidad ya inventó los microondas.</p>
-    <div class="actions">
-      <a class="btn primary" href="#grid">Entrar</a>
-      <button class="btn ghost" id="surprise">Sorprenderme</button>
-    </div>
-  </div>
-  <div class="orbit" aria-label="Visual experimental">
-    <div class="ring"></div><div class="ring r2"></div><div class="core"></div>
-    <i class="sat s1"></i><i class="sat s2"></i><i class="sat s3"></i><i class="sat s4"></i>
-  </div>
+<section class="wrap hero" style="border:0">
+<div>
+<div class="kicker">Estudio imaginario · Buenos Aires</div>
+<h1>Una casa<br>sin <em>apuro.</em></h1>
+<p class="lead">Un experimento editorial sobre espacios, objetos y las pequeñas cosas que hacen que un lugar empiece a sentirse propio.</p>
+</div>
+<div class="circle"><div class="flower"><i></i><i></i><i></i></div></div>
 </section>
 
-<section class="wrap section" id="grid">
-  <div class="head">
-    <div><div class="kicker">Index</div><h2>Fragments</h2></div>
-    <p>06 entries / interactive</p>
-  </div>
-  <div class="grid">
-    <article class="card" data-title="Aperture">
-      <div class="num">01 / aperture</div><h3>Aperture</h3><p>Una ventana que no da a ningún lugar conocido. A veces eso alcanza.</p><div class="arrow">↗</div>
-    </article>
-    <article class="card" data-title="Resonance">
-      <div class="num">02 / resonance</div><h3>Resonance</h3><p>Patrones que parecen aleatorios hasta que dejan de parecerlo.</p><div class="arrow">↗</div>
-    </article>
-    <article class="card" data-title="Archive">
-      <div class="num">03 / archive</div><h3>Archive</h3><p>Una colección mínima de cosas que nadie se molestó en borrar.</p><div class="arrow">↗</div>
-    </article>
-    <article class="card" data-title="Drift">
-      <div class="num">04 / drift</div><h3>Drift</h3><p>Movimiento lento, cambios pequeños y una sospechosa falta de contexto.</p><div class="arrow">↗</div>
-    </article>
-    <article class="card" data-title="Signal">
-      <div class="num">05 / signal</div><h3>Signal</h3><p>Algo aparece entre el ruido. Todavía no decidió si quiere ser entendido.</p><div class="arrow">↗</div>
-    </article>
-    <article class="card" data-title="Afterglow">
-      <div class="num">06 / afterglow</div><h3>Afterglow</h3><p>La última luz antes de que la pantalla vuelva a quedar en silencio.</p><div class="arrow">↗</div>
-    </article>
-  </div>
-</section>
+<section id="idea"><div class="wrap">
+<div class="section-title">01 — La idea</div>
+<div class="columns"><p class="big">Diseñar menos. Vivir más.</p><p class="copy">Casa 27 no es una tienda, una inmobiliaria ni una revista. Es una colección inventada de habitaciones que podrían existir. Cada rincón tiene una función, aunque algunas funciones son simplemente mirar por la ventana y perder diez minutos de manera productiva.</p></div>
+</div></section>
 
-<section class="wrap section" id="pulse">
-  <div class="panel">
-    <div>
-      <div class="kicker">Pulse</div>
-      <div style="font-size:21px;font-weight:800">Signal integrity</div>
-      <div class="progress"><b></b></div>
-    </div>
-    <div class="stat"><strong id="percent">72%</strong><span>nominal</span></div>
-  </div>
-</section>
+<section id="objetos"><div class="wrap">
+<div class="section-title">02 — Inventario</div>
+<div class="list">
+<div class="row"><span>01</span><strong>Lámpara de las 18:42</strong><button data-msg="La lámpara no está a la venta. Solo ilumina.">ver</button></div>
+<div class="row"><span>02</span><strong>Mesa para cuatro, aunque vivan dos</strong><button data-msg="Invitados inesperados: incluidos.">ver</button></div>
+<div class="row"><span>03</span><strong>Ventana orientada al ruido</strong><button data-msg="Da a una calle bastante tranquila. Mentimos por razones artísticas.">ver</button></div>
+<div class="row"><span>04</span><strong>Sillón que conoce demasiadas siestas</strong><button data-msg="Historial de siestas: clasificado.">ver</button></div>
+<div class="row"><span>05</span><strong>Planta que sobrevivió al verano</strong><button data-msg="Contra todo pronóstico, sigue viva.">ver</button></div>
+</div>
+</div></section>
 
-<section class="wrap section" id="about" style="padding-top:0">
-  <div class="panel">
-    <div>
-      <div class="kicker">Open channel</div>
-      <div style="font-size:18px;font-weight:800">Nothing here is permanent.</div>
-      <div style="color:var(--muted);font-size:13px;line-height:1.7;margin-top:7px">La interfaz está hecha para jugar un rato con ella. Cada carga genera una pequeña variación en el estado.</div>
-    </div>
-    <button class="btn primary" id="stateBtn">Generate</button>
-  </div>
-</section>
+<section id="final"><div class="wrap"><div class="note"><div class="section-title">03 — Cierre</div><h2>Lo mejor de una casa es que después podés apagar la luz.</h2><p>Fin de la visita. No hay formulario, newsletter ni botón de “comprar ahora”. Internet sobrevivirá sin ellos.</p></div></div></section>
 </main>
 
-<div class="modal" id="modal">
-  <div class="dialog">
-    <div class="dialog-top"><span style="font-size:11px;letter-spacing:.16em;color:var(--accent)">UNEXPECTED RESPONSE</span><button class="close" id="close">×</button></div>
-    <h3 id="modalTitle">...</h3>
-    <p id="modalText">...</p>
-    <button class="btn primary" id="modalAction">Continue</button>
-  </div>
-</div>
-
-<footer class="wrap">NOCTILUX · static experiment · <span id="year"></span></footer>
-
+<footer class="wrap"><span>CASA 27</span><span>© 2026 / una ficción digital</span></footer>
+<div id="toast"></div>
 <script>
-const modal=document.getElementById('modal');
-const title=document.getElementById('modalTitle');
-const textEl=document.getElementById('modalText');
-const surprises=[
-  ['Aperture selected','La puerta se abrió, pero no había nadie del otro lado. Técnicamente, funcionó.'],
-  ['Signal acquired','Se detectó una señal débil. El sistema recomienda no hacer preguntas.'],
-  ['Archive unlocked','Encontraste algo que no figuraba en el índice. Ahora sí figura.'],
-  ['State generated','Estado nuevo generado. No preguntes qué había en el anterior.']
-];
-function openModal(i){title.textContent=surprises[i][0];textEl.textContent=surprises[i][1];modal.classList.add('show')}
-document.querySelectorAll('.card').forEach((card,i)=>card.addEventListener('click',()=>openModal(i%surprises.length)));
-document.getElementById('surprise').addEventListener('click',()=>openModal(Math.floor(Math.random()*surprises.length)));
-document.getElementById('stateBtn').addEventListener('click',()=>{
-  const n=68+Math.floor(Math.random()*26);
-  document.getElementById('percent').textContent=n+'%';
-  openModal(3);
-});
-document.getElementById('close').addEventListener('click',()=>modal.classList.remove('show'));
-document.getElementById('modalAction').addEventListener('click',()=>modal.classList.remove('show'));
-modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show')});
-function tick(){
-  const d=new Date();
-  document.getElementById('clock').textContent=[d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,'0')).join(':');
-}
-tick();setInterval(tick,1000);
-document.getElementById('year').textContent=new Date().getFullYear();
+const toast=document.getElementById('toast');let timer;
+document.querySelectorAll('[data-msg]').forEach(b=>b.onclick=()=>{toast.textContent=b.dataset.msg;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2600)});
 </script>
 </body>
 </html>
