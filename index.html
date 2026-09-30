@@ -3,82 +3,140 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CASA 27</title>
+<title>MARÉA</title>
 <style>
-*{box-sizing:border-box}html{scroll-behavior:smooth}
-body{margin:0;background:#eeeae2;color:#171717;font-family:Georgia,"Times New Roman",serif}
-.wrap{width:min(1120px,calc(100% - 36px));margin:auto}
-header{padding:22px 0;border-bottom:1px solid #171717}
-nav{display:flex;align-items:center;justify-content:space-between}
-.brand{font-size:22px;font-weight:700;letter-spacing:-.04em}
-nav a{font-family:Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.14em;margin-left:22px}
-.hero{min-height:78vh;display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;padding:65px 0}
-.kicker{font-family:Arial,sans-serif;font-size:10px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:25px}
-h1{font-size:clamp(58px,9vw,120px);line-height:.78;letter-spacing:-.08em;font-weight:500;margin:0}
-h1 em{font-weight:400}
-.lead{font-size:19px;line-height:1.5;max-width:450px;margin:35px 0}
-.circle{height:min(530px,75vw);border-radius:50%;background:#c7d5bc;position:relative;overflow:hidden}
-.circle:before{content:"";position:absolute;width:60%;height:120%;left:20%;top:-10%;background:#d9a75c;transform:rotate(18deg);border-radius:50%}
-.circle:after{content:"27";position:absolute;right:9%;bottom:5%;font:700 clamp(70px,12vw,150px)/1 Arial,sans-serif;color:#eeeae2;letter-spacing:-.1em}
-.flower{position:absolute;z-index:2;left:19%;top:28%;width:44%;height:44%;border-radius:50%;background:#171717;box-shadow:50px -40px 0 -15px #171717,-50px 35px 0 -22px #171717}
-.flower i{position:absolute;width:42%;height:42%;background:#e9d7b5;border-radius:50%}
-.flower i:nth-child(1){left:5%;top:30%}.flower i:nth-child(2){right:5%;top:15%}.flower i:nth-child(3){left:30%;bottom:2%}
-section{padding:80px 0;border-top:1px solid #171717}
-.section-title{font-size:13px;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.15em;margin-bottom:45px}
-.columns{display:grid;grid-template-columns:1fr 2fr;gap:50px}
-.big{font-size:42px;line-height:1.02;letter-spacing:-.05em;margin:0}
-.copy{font-size:17px;line-height:1.65;margin:0;max-width:650px}
-.list{margin-top:60px;border-top:1px solid #171717}
-.row{display:grid;grid-template-columns:70px 1fr auto;gap:20px;padding:22px 0;border-bottom:1px solid #171717;align-items:center}
-.row span:first-child{font:11px Arial,sans-serif;color:#777}
-.row strong{font-size:22px;font-weight:500}
-.row button{border:0;background:none;text-decoration:underline;cursor:pointer;font:12px Arial,sans-serif}
-.note{background:#171717;color:#eeeae2;padding:65px 7%;margin-top:70px}
-.note h2{font-size:clamp(38px,6vw,72px);font-weight:400;line-height:.9;letter-spacing:-.06em;margin:0 0 25px}
-.note p{max-width:520px;font-size:16px;line-height:1.6;color:#c7c3ba}
-footer{padding:25px 0 45px;font:10px Arial,sans-serif;text-transform:uppercase;letter-spacing:.13em;display:flex;justify-content:space-between}
-#toast{position:fixed;left:50%;bottom:25px;transform:translate(-50%,20px);background:#171717;color:#eeeae2;padding:13px 18px;font:12px Arial,sans-serif;opacity:0;pointer-events:none;transition:.25s}
-#toast.show{opacity:1;transform:translate(-50%,0)}
-@media(max-width:760px){nav .links{display:none}.hero{grid-template-columns:1fr;padding:50px 0}.circle{height:88vw}.columns{grid-template-columns:1fr;gap:25px}.row{grid-template-columns:45px 1fr}.row button{display:none}footer{gap:20px;flex-direction:column}}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{background:#061a2d;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#f7fbff}
+#ocean{position:fixed;inset:0;width:100%;height:100%;display:block}
+.ui{position:fixed;inset:0;pointer-events:none}
+.top{position:absolute;left:28px;right:28px;top:24px;display:flex;justify-content:space-between;align-items:flex-start}
+.logo{font-size:13px;font-weight:800;letter-spacing:.28em;text-transform:uppercase}
+.readout{font-size:11px;line-height:1.6;text-align:right;opacity:.8}
+.panel{position:absolute;left:28px;bottom:28px;width:min(340px,calc(100% - 56px));padding:20px 20px 18px;border:1px solid rgba(255,255,255,.22);background:rgba(1,12,23,.34);backdrop-filter:blur(12px);border-radius:18px;pointer-events:auto;box-shadow:0 18px 50px rgba(0,0,0,.22)}
+.panel h1{margin:0 0 6px;font-size:42px;line-height:.9;letter-spacing:-.07em}
+.panel p{margin:0 0 18px;max-width:270px;font-size:12px;line-height:1.5;opacity:.72}
+.controls{display:grid;grid-template-columns:1fr auto;gap:11px;align-items:center}
+input[type=range]{width:100%;accent-color:white}
+button{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:white;border-radius:999px;padding:8px 11px;font-size:11px;cursor:pointer}
+.hint{position:absolute;right:28px;bottom:29px;font-size:10px;opacity:.52;letter-spacing:.08em;text-transform:uppercase}
+.badge{display:inline-flex;gap:8px;align-items:center;font-size:10px;text-transform:uppercase;letter-spacing:.12em;opacity:.7;margin-bottom:14px}
+.dot{width:7px;height:7px;border-radius:50%;background:#8be3ff;box-shadow:0 0 16px #8be3ff}
+@media(max-width:700px){.top{left:18px;right:18px;top:18px}.panel{left:18px;bottom:18px;width:calc(100% - 36px)}.hint{display:none}.panel h1{font-size:35px}}
 </style>
 </head>
 <body>
-<header><div class="wrap"><nav><div class="brand">CASA 27</div><div class="links"><a href="#idea">Idea</a><a href="#objetos">Objetos</a><a href="#final">Final</a></div></nav></div></header>
-
-<main>
-<section class="wrap hero" style="border:0">
-<div>
-<div class="kicker">Estudio imaginario · Buenos Aires</div>
-<h1>Una casa<br>sin <em>apuro.</em></h1>
-<p class="lead">Un experimento editorial sobre espacios, objetos y las pequeñas cosas que hacen que un lugar empiece a sentirse propio.</p>
+<canvas id="ocean"></canvas>
+<div class="ui">
+  <div class="top">
+    <div class="logo">MARÉA</div>
+    <div class="readout"><span id="count">000</span> habitantes<br><span id="depth">020</span> m de profundidad</div>
+  </div>
+  <div class="panel">
+    <div class="badge"><span class="dot"></span> ecosistema vivo</div>
+    <h1>Un océano<br>en tu pantalla.</h1>
+    <p>Mové el mouse, tocá la pantalla o hacé clic para alterar las corrientes. Sí, básicamente te doy un acuario porque claramente eso era lo que faltaba.</p>
+    <div class="controls">
+      <input id="flow" type="range" min="0" max="100" value="55" aria-label="Corriente">
+      <button id="spawn">+ vida</button>
+    </div>
+  </div>
+  <div class="hint">mover · tocar · observar</div>
 </div>
-<div class="circle"><div class="flower"><i></i><i></i><i></i></div></div>
-</section>
-
-<section id="idea"><div class="wrap">
-<div class="section-title">01 — La idea</div>
-<div class="columns"><p class="big">Diseñar menos. Vivir más.</p><p class="copy">Casa 27 no es una tienda, una inmobiliaria ni una revista. Es una colección inventada de habitaciones que podrían existir. Cada rincón tiene una función, aunque algunas funciones son simplemente mirar por la ventana y perder diez minutos de manera productiva.</p></div>
-</div></section>
-
-<section id="objetos"><div class="wrap">
-<div class="section-title">02 — Inventario</div>
-<div class="list">
-<div class="row"><span>01</span><strong>Lámpara de las 18:42</strong><button data-msg="La lámpara no está a la venta. Solo ilumina.">ver</button></div>
-<div class="row"><span>02</span><strong>Mesa para cuatro, aunque vivan dos</strong><button data-msg="Invitados inesperados: incluidos.">ver</button></div>
-<div class="row"><span>03</span><strong>Ventana orientada al ruido</strong><button data-msg="Da a una calle bastante tranquila. Mentimos por razones artísticas.">ver</button></div>
-<div class="row"><span>04</span><strong>Sillón que conoce demasiadas siestas</strong><button data-msg="Historial de siestas: clasificado.">ver</button></div>
-<div class="row"><span>05</span><strong>Planta que sobrevivió al verano</strong><button data-msg="Contra todo pronóstico, sigue viva.">ver</button></div>
-</div>
-</div></section>
-
-<section id="final"><div class="wrap"><div class="note"><div class="section-title">03 — Cierre</div><h2>Lo mejor de una casa es que después podés apagar la luz.</h2><p>Fin de la visita. No hay formulario, newsletter ni botón de “comprar ahora”. Internet sobrevivirá sin ellos.</p></div></div></section>
-</main>
-
-<footer class="wrap"><span>CASA 27</span><span>© 2026 / una ficción digital</span></footer>
-<div id="toast"></div>
 <script>
-const toast=document.getElementById('toast');let timer;
-document.querySelectorAll('[data-msg]').forEach(b=>b.onclick=()=>{toast.textContent=b.dataset.msg;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2600)});
+const c=document.getElementById('ocean'),ctx=c.getContext('2d');
+const countEl=document.getElementById('count'),depthEl=document.getElementById('depth');
+let W=innerWidth,H=innerHeight,D=devicePixelRatio||1,t=0,mouse={x:-9999,y:-9999,active:false};
+const flow=document.getElementById('flow'),spawn=document.getElementById('spawn');
+let fish=[],bubbles=[],plants=[],ripples=[];
+const rand=(a,b)=>Math.random()*(b-a)+a;
+function resize(){
+  W=innerWidth;H=innerHeight;D=Math.min(2,devicePixelRatio||1);
+  c.width=W*D;c.height=H*D;c.style.width=W+'px';c.style.height=H+'px';ctx.setTransform(D,0,0,D,0,0);
+  plants=Array.from({length:Math.max(10,Math.floor(W/90))},(_,i)=>({x:i*90+rand(-30,30),h:rand(45,120),phase:rand(0,7)}));
+}
+function makeFish(x=rand(0,W),y=rand(100,H*.83),scale=rand(.55,1.35)){
+  fish.push({x,y,vx:rand(.25,.9),vy:rand(-.12,.12),size:scale,color:Math.random()<.45?'#ffd166':Math.random()<.5?'#ef7b8b':'#8be3ff',phase:rand(0,7),flip:false});
+}
+function seed(){
+  fish=[];bubbles=[];ripples=[];
+  for(let i=0;i<38;i++)makeFish();
+  for(let i=0;i<25;i++)bubbles.push({x:rand(0,W),y:rand(0,H),r:rand(1,4),v:rand(.2,.8)});
+}
+function drawGradient(){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0a3c5f');g.addColorStop(.55,'#07506c');g.addColorStop(1,'#021623');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  const sun=ctx.createRadialGradient(W*.72,H*.05,5,W*.72,H*.05,Math.min(W,H)*.7);
+  sun.addColorStop(0,'rgba(255,255,255,.24)');sun.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=sun;ctx.fillRect(0,0,W,H);
+}
+function drawRays(){
+  ctx.save();ctx.globalAlpha=.075;
+  for(let i=-4;i<7;i++){
+    ctx.beginPath();ctx.moveTo(W*.72,H*.05);ctx.lineTo(W*.72+i*140,H);ctx.lineTo(W*.72+i*70,H);ctx.closePath();ctx.fillStyle='#dff8ff';ctx.fill();
+  }
+  ctx.restore();
+}
+function drawPlants(){
+  ctx.save();ctx.strokeStyle='rgba(27,126,102,.7)';ctx.lineWidth=5;ctx.lineCap='round';
+  plants.forEach(p=>{
+    ctx.beginPath();ctx.moveTo(p.x,H);
+    const sway=Math.sin(t*.0014+p.phase)*18;
+    ctx.quadraticCurveTo(p.x+sway*.4,H-p.h*.55,p.x+sway,H-p.h);
+    ctx.stroke();
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(p.x+sway*.5,H-p.h*.55);ctx.quadraticCurveTo(p.x+sway+18,H-p.h*.68,p.x+sway+24,H-p.h*.83);ctx.stroke();
+  });ctx.restore();
+}
+function drawFish(f){
+  ctx.save();ctx.translate(f.x,f.y);ctx.scale(f.flip?-f.size:f.size,f.size);
+  ctx.globalAlpha=.9;
+  ctx.fillStyle=f.color;ctx.beginPath();ctx.ellipse(0,0,17,9,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.moveTo(-13,0);ctx.lineTo(-27,-10);ctx.lineTo(-25,2);ctx.lineTo(-27,11);ctx.closePath();ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(9,-2.5,2.2,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+function drawBubbles(){
+  ctx.save();ctx.strokeStyle='rgba(205,246,255,.28)';ctx.lineWidth=1;
+  bubbles.forEach(b=>{ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.stroke()});ctx.restore();
+}
+function drawRipples(){
+  ctx.save();ctx.lineWidth=2;
+  ripples.forEach(r=>{ctx.strokeStyle='rgba(255,255,255,'+(1-r.life)+')';ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,Math.PI*2);ctx.stroke()});ctx.restore();
+}
+function addRipple(x,y){
+  ripples.push({x,y,r:4,life:1});
+  for(let i=0;i<3;i++){const f=fish[Math.floor(rand(0,fish.length))];if(f){f.vx+=rand(.6,1.4);f.vy+=rand(-.6,.6);}}
+}
+function tick(now){
+  t=now;drawGradient();drawRays();drawPlants();
+  const current=(Number(flow.value)/100-.5)*.8;
+  fish.forEach(f=>{
+    let ax=current+Math.sin(now*.0007+f.phase)*.045;
+    if(mouse.active){const dx=mouse.x-f.x,dy=mouse.y-f.y,d=Math.hypot(dx,dy)||1;if(d<170){ax+=dx/d*.23;f.vy+=dy/d*.008;}}
+    f.vy+=Math.sin(now*.0013+f.phase)*.002;
+    f.vx+=ax*.008;f.vx=Math.max(.15,Math.min(1.6,f.vx));f.vy*=.992;
+    f.x+=f.vx;f.y+=f.vy;
+    if(f.x>W+45)f.x=-45;
+    if(f.y<H*.12)f.vy+=.03;if(f.y>H*.86)f.vy-=.03;
+    if(Math.random()<.0025)f.flip=!f.flip;
+    drawFish(f);
+  });
+  bubbles.forEach(b=>{b.y-=b.v;if(b.y<-10){b.y=H+10;b.x=rand(0,W)}});drawBubbles();
+  ripples.forEach(r=>{r.r+=2.7;r.life-=.018});ripples=ripples.filter(r=>r.life>0);drawRipples();
+  countEl.textContent=String(fish.length).padStart(3,'0');
+  depthEl.textContent=String(Math.round(20+Number(flow.value)*.42)).padStart(3,'0');
+  requestAnimationFrame(tick);
+}
+addEventListener('resize',()=>{resize();seed()});
+addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;mouse.active=true});
+addEventListener('mouseleave',()=>mouse.active=false);
+addEventListener('touchstart',e=>{const q=e.touches[0];if(q){mouse.x=q.clientX;mouse.y=q.clientY;mouse.active=true;addRipple(mouse.x,mouse.y)}},{passive:true});
+addEventListener('touchmove',e=>{const q=e.touches[0];if(q){mouse.x=q.clientX;mouse.y=q.clientY;addRipple(mouse.x,mouse.y)}},{passive:true});
+addEventListener('click',e=>{if(e.target.closest('.panel'))return;addRipple(e.clientX,e.clientY)});
+spawn.onclick=()=>{for(let i=0;i<5;i++)makeFish(rand(W*.2,W*.8),rand(H*.2,H*.8),rand(.45,1.1));addRipple(W*.5,H*.5)};
+resize();seed();requestAnimationFrame(tick);
 </script>
 </body>
 </html>
