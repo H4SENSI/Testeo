@@ -6,923 +6,643 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Typeface;
-import android.os.SystemClock;
+import android.opengl.GLES20;
+import android.opengl.GLSurfaceView;
+import android.opengl.Matrix;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.FrameLayout;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Random;
 
-public class GameView extends View {
-    private static final int MENU = 0;
-    private static final int MATCH = 1;
-    private static final int PAUSE = 2;
-    private static final int RESULT = 3;
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
 
-    private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final RectF r = new RectF();
-    private final List<Player> players = new ArrayList<>();
-    private final Random random = new Random(11);
-
-    private int state = MENU;
-    private float screenW;
-    private float screenH;
-    private long lastFrame;
-    private float menuPulse;
-    private float matchClock;
-    private int homeScore;
-    private int awayScore;
-    private int selectedPlayer = 7;
-    private boolean joystickActive;
-    private float joystickX;
-    private float joystickY;
-    private float joystickDX;
-    private float joystickDY;
-    private boolean initialized;
-    private float goalFlash;
-    private String resultTitle = "";
-
-    private final Ball ball = new Ball();
+public class GameView extends FrameLayout {
+    private final GLSurfaceView glView;
+    private final FootballRenderer renderer;
+    private final Hud hud;
 
     public GameView(Context context) {
         super(context);
-        setFocusable(true);
-        p.setStrokeCap(Paint.Cap.ROUND);
-        line.setStyle(Paint.Style.STROKE);
-        line.setStrokeWidth(3f);
-        text.setTypeface(Typeface.create("sans", Typeface.NORMAL));
-        lastFrame = SystemClock.uptimeMillis();
+        setWillNotDraw(false);
+
+        glView = new GLSurfaceView(context);
+        glView.setEGLContextClientVersion(2);
+        renderer = new FootballRenderer();
+        glView.setRenderer(renderer);
+        glView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+
+        addView(glView, new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+        hud = new Hud(context);
+        addView(hud, new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
     }
 
-    @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        screenW = w;
-        screenH = h;
-        initialized = true;
-        if (state == MATCH) {
-            resetMatch();
-        }
+    private void runOnGl(Runnable action) {
+        glView.queueEvent(action);
     }
 
-    private float sx() {
-        return screenW;
-    }
+    private class Hud extends View {
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint t = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private float joyX, joyY;
+        private boolean joyTouch;
+        private boolean matchStarted;
 
-    private float sy() {
-        return screenH;
-    }
-
-    private float left() {
-        return 34f;
-    }
-
-    private float right() {
-        return screenW - 34f;
-    }
-
-    private float top() {
-        return 78f;
-    }
-
-    private float bottom() {
-        return screenH - 36f;
-    }
-
-    private float midY() {
-        return (top() + bottom()) * 0.5f;
-    }
-
-    private float clamp(float v, float a, float b) {
-        return Math.max(a, Math.min(b, v));
-    }
-
-    private float len(float x, float y) {
-        return (float) Math.sqrt(x * x + y * y);
-    }
-
-    private void startMatch() {
-        state = MATCH;
-        matchClock = 0f;
-        homeScore = 0;
-        awayScore = 0;
-        goalFlash = 0f;
-        resultTitle = "";
-        resetMatch();
-    }
-
-    private void resetMatch() {
-        players.clear();
-
-        String[] names = {
-                "MENDOZA", "REYES", "SOSA", "ACOSTA", "FERRER",
-                "VEGA", "LOPEZ", "RAMOS", "TORRES", "DIAZ", "BENITEZ"
-        };
-
-        float pitchW = right() - left();
-        float pitchH = bottom() - top();
-
-        // Home team, attacking to the right.
-        float[][] home = {
-                {0.08f, 0.50f}, {0.18f, 0.25f}, {0.18f, 0.75f},
-                {0.32f, 0.38f}, {0.32f, 0.62f}, {0.47f, 0.24f},
-                {0.47f, 0.50f}, {0.47f, 0.76f}, {0.67f, 0.32f},
-                {0.67f, 0.68f}, {0.82f, 0.50f}
-        };
-
-        for (int i = 0; i < home.length; i++) {
-            float x = left() + pitchW * home[i][0];
-            float y = top() + pitchH * home[i][1];
-            players.add(new Player(x, y, x, y, true, i + 1, names[i]));
+        Hud(Context context) {
+            super(context);
+            t.setTypeface(Typeface.create("sans", Typeface.BOLD));
+            setFocusable(true);
         }
 
-        // Away team, with slightly varied positioning.
-        for (int i = 0; i < home.length; i++) {
-            float x = left() + pitchW * (1f - home[i][0]);
-            float y = top() + pitchH * home[i][1];
-            players.add(new Player(x, y, x, y, false, i + 1, "CPU"));
-        }
+        @Override
+        protected void onDraw(Canvas c) {
+            super.onDraw(c);
+            int w = getWidth(), h = getHeight();
+            FootballRenderer.Snapshot s = renderer.snapshot();
 
-        selectedPlayer = 7;
-        for (int i = 0; i < players.size(); i++) {
-            players.get(i).controlled = (i == selectedPlayer - 1);
-        }
-
-        ball.x = screenW * 0.5f;
-        ball.y = midY();
-        ball.vx = 0f;
-        ball.vy = 0f;
-    }
-
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-
-        if (!initialized) {
-            return;
-        }
-
-        long now = SystemClock.uptimeMillis();
-        float dt = Math.min(0.033f, (now - lastFrame) / 1000f);
-        lastFrame = now;
-
-        if (state == MATCH) {
-            update(dt);
-            drawMatch(canvas);
-        } else if (state == PAUSE) {
-            drawMatch(canvas);
-            drawPause(canvas);
-        } else if (state == RESULT) {
-            drawResult(canvas);
-        } else {
-            updateMenu(dt);
-            drawMenu(canvas);
-        }
-
-        postInvalidateOnAnimation();
-    }
-
-    private void updateMenu(float dt) {
-        menuPulse += dt;
-        if (menuPulse > 1000f) {
-            menuPulse = 0;
-        }
-    }
-
-    private void update(float dt) {
-        if (goalFlash > 0f) {
-            goalFlash -= dt;
-        }
-
-        matchClock += dt;
-        if (matchClock >= 90f) {
-            matchClock = 90f;
-            if (homeScore > awayScore) {
-                resultTitle = "VICTORY";
-            } else if (homeScore < awayScore) {
-                resultTitle = "DEFEAT";
+            if (!matchStarted) {
+                drawMenu(c, w, h);
             } else {
-                resultTitle = "DRAW";
-            }
-            state = RESULT;
-            return;
-        }
-
-        Player controlled = getControlledPlayer();
-        if (controlled != null) {
-            float speed = 245f;
-            if (joystickActive) {
-                controlled.vx = joystickDX * speed;
-                controlled.vy = joystickDY * speed;
-            } else {
-                controlled.vx *= 0.75f;
-                controlled.vy *= 0.75f;
-            }
-        }
-
-        float l = left() + 14f;
-        float rr = right() - 14f;
-        float tt = top() + 14f;
-        float bb = bottom() - 14f;
-
-        for (Player pl : players) {
-            if (!pl.home || !pl.controlled) {
-                updateCpuPlayer(pl, dt);
+                drawHud(c, w, h, s);
             }
 
-            pl.x += pl.vx * dt;
-            pl.y += pl.vy * dt;
-            pl.vx *= 0.86f;
-            pl.vy *= 0.86f;
-
-            pl.x = clamp(pl.x, l, rr);
-            pl.y = clamp(pl.y, tt, bb);
+            postInvalidateOnAnimation();
         }
 
-        handlePlayerBallInteraction(dt);
-        updateBall(dt);
-    }
+        private void drawMenu(Canvas c, int w, int h) {
+            p.setColor(Color.argb(145, 3, 8, 13));
+            c.drawRect(0, 0, w, h, p);
 
-    private Player getControlledPlayer() {
-        for (Player pl : players) {
-            if (pl.home && pl.controlled) return pl;
-        }
-        return null;
-    }
+            p.setColor(Color.argb(235, 8, 17, 26));
+            c.drawRoundRect(new RectF(w * .08f, h * .12f, w * .92f, h * .88f), 30, 30, p);
 
-    private void updateCpuPlayer(Player pl, float dt) {
-        float targetX = pl.homeX;
-        float targetY = pl.homeY;
+            text(c, "STREET 11", w * .5f, h * .29f, 58, Color.WHITE, true);
+            text(c, "3D MOBILE FOOTBALL", w * .5f, h * .36f, 16, Color.rgb(103, 220, 177), true);
+            text(c, "QUICK MATCH", w * .5f, h * .42f, 13, Color.rgb(147, 160, 175), true);
 
-        if (!pl.home) {
-            float distance = len(ball.x - pl.x, ball.y - pl.y);
-            if (distance < 260f || isNearestOpponent(pl)) {
-                targetX = ball.x;
-                targetY = ball.y;
-            } else {
-                targetX += (ball.x - screenW * 0.5f) * 0.10f;
-                targetY += (ball.y - midY()) * 0.08f;
-            }
-        } else {
-            float dBall = len(ball.x - pl.x, ball.y - pl.y);
-            if (dBall < 155f && !pl.keeper) {
-                targetX = ball.x - 22f;
-                targetY = ball.y;
-            } else {
-                targetX += (ball.x - screenW * 0.5f) * 0.055f;
-                targetY += (ball.y - midY()) * 0.055f;
-            }
+            p.setColor(Color.rgb(47, 161, 255));
+            c.drawRoundRect(new RectF(w * .27f, h * .53f, w * .73f, h * .66f), 18, 18, p);
+            text(c, "PLAY", w * .5f, h * .615f, 20, Color.WHITE, true);
+
+            text(c, "3D CAMERA  •  22 PLAYERS  •  OFFLINE", w * .5f, h * .75f, 11,
+                    Color.rgb(114, 133, 151), true);
+            text(c, "H4SENSI FC", w * .5f, h * .80f, 11,
+                    Color.rgb(99, 185, 255), true);
         }
 
-        float dx = targetX - pl.x;
-        float dy = targetY - pl.y;
-        float d = len(dx, dy);
-        if (d > 3f) {
-            float speed = pl.home ? 115f : 145f;
-            pl.vx += (dx / d) * speed * dt * 6f;
-            pl.vy += (dy / d) * speed * dt * 6f;
-            float max = speed;
-            float v = len(pl.vx, pl.vy);
-            if (v > max) {
-                pl.vx = pl.vx / v * max;
-                pl.vy = pl.vy / v * max;
-            }
-        }
-    }
+        private void drawHud(Canvas c, int w, int h, FootballRenderer.Snapshot s) {
+            p.setColor(Color.argb(220, 5, 11, 17));
+            c.drawRoundRect(new RectF(w * .31f, 15, w * .69f, 75), 18, 18, p);
 
-    private boolean isNearestOpponent(Player pl) {
-        float d = len(ball.x - pl.x, ball.y - pl.y);
-        for (Player other : players) {
-            if (other.home) continue;
-            if (other == pl) continue;
-            if (len(ball.x - other.x, ball.y - other.y) < d) return false;
-        }
-        return true;
-    }
+            text(c, "BLUE UNITED", w * .37f, 38, 10, Color.rgb(133, 192, 255), true);
+            text(c, "RED ATHLETIC", w * .63f, 38, 10, Color.rgb(255, 143, 156), true);
+            text(c, s.home + "  -  " + s.away, w * .5f, 58, 25, Color.WHITE, true);
+            text(c, String.format(Locale.US, "%02d:%02d", (int)(s.clock / 60), (int)s.clock % 60),
+                    w * .5f, 76, 10, Color.rgb(170, 182, 193), true);
 
-    private void handlePlayerBallInteraction(float dt) {
-        for (Player pl : players) {
-            float dx = ball.x - pl.x;
-            float dy = ball.y - pl.y;
-            float d = len(dx, dy);
+            p.setColor(Color.argb(160, 9, 16, 23));
+            c.drawRoundRect(new RectF(w - 68, 18, w - 20, 62), 12, 12, p);
+            text(c, "Ⅱ", w - 44, 47, 18, Color.WHITE, true);
 
-            if (d < pl.radius + ball.radius + 11f) {
-                if (pl.controlled && joystickActive && len(joystickDX, joystickDY) > 0.12f) {
-                    float push = 55f;
-                    ball.vx += joystickDX * push * dt * 8f;
-                    ball.vy += joystickDY * push * dt * 8f;
-                    ball.ownerHome = true;
-                } else if (!pl.home && d < 28f) {
-                    float aimX = left() + (right() - left()) * 0.94f;
-                    float aimY = midY();
-                    float ax = aimX - ball.x;
-                    float ay = aimY - ball.y;
-                    float ad = Math.max(1f, len(ax, ay));
-                    ball.vx = ax / ad * 205f;
-                    ball.vy = ay / ad * 205f;
-                    ball.ownerHome = false;
-                }
-            }
-        }
-    }
-
-    private void updateBall(float dt) {
-        ball.x += ball.vx * dt;
-        ball.y += ball.vy * dt;
-
-        float friction = (float) Math.pow(0.986, dt * 60f);
-        ball.vx *= friction;
-        ball.vy *= friction;
-
-        float goalTop = midY() - 57f;
-        float goalBottom = midY() + 57f;
-
-        if (ball.x < left() - 28f) {
-            if (ball.y >= goalTop && ball.y <= goalBottom) {
-                awayScore++;
-                goalFlash = 1.8f;
-                resetAfterGoal();
-                return;
-            }
-            ball.x = left() + 2f;
-            ball.vx = Math.abs(ball.vx) * 0.65f;
-        }
-
-        if (ball.x > right() + 28f) {
-            if (ball.y >= goalTop && ball.y <= goalBottom) {
-                homeScore++;
-                goalFlash = 1.8f;
-                resetAfterGoal();
-                return;
-            }
-            ball.x = right() - 2f;
-            ball.vx = -Math.abs(ball.vx) * 0.65f;
-        }
-
-        if (ball.y < top() + 2f) {
-            ball.y = top() + 2f;
-            ball.vy = Math.abs(ball.vy) * 0.76f;
-        } else if (ball.y > bottom() - 2f) {
-            ball.y = bottom() - 2f;
-            ball.vy = -Math.abs(ball.vy) * 0.76f;
-        }
-    }
-
-    private void resetAfterGoal() {
-        for (Player pl : players) {
-            pl.x = pl.homeX;
-            pl.y = pl.homeY;
-            pl.vx = 0f;
-            pl.vy = 0f;
-        }
-        ball.x = screenW * 0.5f;
-        ball.y = midY();
-        ball.vx = (homeScore + awayScore) % 2 == 0 ? -65f : 65f;
-        ball.vy = 0f;
-    }
-
-    private void drawBase(Canvas c) {
-        c.drawColor(Color.rgb(5, 8, 12));
-
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.rgb(10, 17, 25));
-        c.drawRect(0, 0, screenW, screenH, p);
-
-        p.setColor(Color.argb(35, 70, 210, 255));
-        c.drawCircle(screenW * 0.15f, screenH * 0.05f, screenW * 0.24f, p);
-        p.setColor(Color.argb(25, 102, 255, 176));
-        c.drawCircle(screenW * 0.9f, screenH * 0.84f, screenW * 0.28f, p);
-    }
-
-    private void drawMatch(Canvas c) {
-        drawBase(c);
-        drawPitch(c);
-        drawPlayers(c);
-        drawBall(c);
-        drawHud(c);
-        drawControls(c);
-
-        if (goalFlash > 0f) {
-            float a = clamp(goalFlash / 1.8f, 0f, 1f);
-            p.setColor(Color.argb((int)(a * 42), 255, 255, 255));
+            float bx = 105, by = h - 112;
+            p.setColor(Color.argb(65, 255,255,255));
+            c.drawCircle(bx, by, 70, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(3);
+            p.setColor(Color.argb(90,255,255,255));
+            c.drawCircle(bx, by, 70, p);
             p.setStyle(Paint.Style.FILL);
-            c.drawRect(0, 0, screenW, screenH, p);
-            drawCentered(c, "GOAL", screenW * 0.5f, screenH * 0.35f, 48f, Color.WHITE, true);
-        }
-    }
+            p.setColor(Color.argb(205,255,255,255));
+            c.drawCircle(bx + joyX * 38, by + joyY * 38, 27, p);
 
-    private void drawPitch(Canvas c) {
-        float l = left();
-        float rr = right();
-        float t = top();
-        float b = bottom();
+            action(c, w - 96, h - 105, 54, "SHOT", Color.rgb(246, 67, 91));
+            action(c, w - 210, h - 158, 44, "PASS", Color.rgb(50, 155, 255));
 
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.rgb(16, 113, 72));
-        r.set(l, t, rr, b);
-        c.drawRoundRect(r, 20f, 20f, p);
+            text(c, "MOVE", 73, h - 28, 10, Color.argb(180,255,255,255), true);
 
-        float stripeW = (rr - l) / 10f;
-        for (int i = 0; i < 10; i++) {
-            if (i % 2 == 0) {
-                p.setColor(Color.argb(22, 255, 255, 255));
-                c.drawRect(l + i * stripeW, t, l + (i + 1) * stripeW, b, p);
+            if (s.state == FootballRenderer.PAUSED || s.state == FootballRenderer.RESULT) {
+                p.setColor(Color.argb(165, 0, 0, 0));
+                c.drawRect(0, 0, w, h, p);
+            }
+
+            if (s.state == FootballRenderer.PAUSED) {
+                panel(c, w, h);
+                text(c, "MATCH PAUSED", w*.5f, h*.34f, 28, Color.WHITE, true);
+                button(c, w*.5f, h*.52f, "RESUME");
+                button(c, w*.5f, h*.64f, "QUIT");
+            } else if (s.state == FootballRenderer.RESULT) {
+                panel(c, w, h);
+                String title = s.home > s.away ? "VICTORY" : (s.home < s.away ? "DEFEAT" : "DRAW");
+                text(c, title, w*.5f, h*.34f, 40,
+                        title.equals("VICTORY") ? Color.rgb(96, 227, 165) : Color.WHITE, true);
+                text(c, s.home + "   -   " + s.away, w*.5f, h*.48f, 46, Color.WHITE, true);
+                button(c, w*.5f, h*.66f, "PLAY AGAIN");
             }
         }
 
-        line.setColor(Color.argb(225, 240, 248, 245));
-        line.setStrokeWidth(3f);
-        line.setStyle(Paint.Style.STROKE);
+        private void panel(Canvas c, int w, int h) {
+            p.setColor(Color.rgb(11, 19, 28));
+            c.drawRoundRect(new RectF(w*.30f, h*.20f, w*.70f, h*.80f), 26, 26, p);
+        }
 
-        r.set(l, t, rr, b);
-        c.drawRoundRect(r, 20f, 20f, line);
-        c.drawLine(screenW * 0.5f, t, screenW * 0.5f, b, line);
-        c.drawCircle(screenW * 0.5f, midY(), 68f, line);
-        c.drawCircle(screenW * 0.5f, midY(), 4f, line);
+        private void button(Canvas c, float x, float y, String label) {
+            p.setColor(label.equals("QUIT") ? Color.rgb(47, 59, 73) : Color.rgb(48, 160, 255));
+            c.drawRoundRect(new RectF(x-120, y-26, x+120, y+26), 13, 13, p);
+            text(c, label, x, y+6, 13, Color.WHITE, true);
+        }
 
-        float boxW = (rr - l) * 0.14f;
-        float boxH = (b - t) * 0.48f;
-        r.set(l, midY() - boxH * 0.5f, l + boxW, midY() + boxH * 0.5f);
-        c.drawRect(r, line);
-        r.set(rr - boxW, midY() - boxH * 0.5f, rr, midY() + boxH * 0.5f);
-        c.drawRect(r, line);
-
-        float smallW = (rr - l) * 0.055f;
-        float smallH = (b - t) * 0.25f;
-        r.set(l, midY() - smallH * 0.5f, l + smallW, midY() + smallH * 0.5f);
-        c.drawRect(r, line);
-        r.set(rr - smallW, midY() - smallH * 0.5f, rr, midY() + smallH * 0.5f);
-        c.drawRect(r, line);
-
-        p.setColor(Color.rgb(220, 224, 218));
-        p.setStyle(Paint.Style.FILL);
-        r.set(l - 28f, midY() - 59f, l + 3f, midY() + 59f);
-        c.drawRoundRect(r, 8f, 8f, p);
-        r.set(rr - 3f, midY() - 59f, rr + 28f, midY() + 59f);
-        c.drawRoundRect(r, 8f, 8f, p);
-    }
-
-    private void drawPlayers(Canvas c) {
-        for (Player pl : players) {
+        private void action(Canvas c, float x, float y, float radius, String label, int color) {
             p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.argb(55, 0, 0, 0));
-            c.drawCircle(pl.x + 2f, pl.y + 5f, pl.radius + 3f, p);
-
-            if (pl.controlled) {
-                p.setStyle(Paint.Style.STROKE);
-                p.setStrokeWidth(4f);
-                p.setColor(Color.WHITE);
-                c.drawCircle(pl.x, pl.y, pl.radius + 8f, p);
-            }
-
+            p.setColor(Color.argb(80,0,0,0));
+            c.drawCircle(x+3, y+5, radius+2, p);
+            p.setColor(color);
+            c.drawCircle(x, y, radius, p);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(2);
+            p.setColor(Color.argb(160,255,255,255));
+            c.drawCircle(x, y, radius, p);
             p.setStyle(Paint.Style.FILL);
-            p.setColor(pl.home ? Color.rgb(30, 125, 255) : Color.rgb(234, 66, 84));
-            c.drawCircle(pl.x, pl.y, pl.radius + 1f, p);
-
-            p.setColor(pl.home ? Color.rgb(174, 220, 255) : Color.rgb(255, 180, 185));
-            c.drawCircle(pl.x, pl.y - 3f, pl.radius * 0.48f, p);
-
-            drawCentered(c, String.valueOf(pl.number), pl.x, pl.y + 4f, 11f,
-                    Color.WHITE, true);
-
-            if (pl.controlled) {
-                drawCentered(c, "YOU", pl.x, pl.y - 31f, 9f, Color.WHITE, true);
-            }
-        }
-    }
-
-    private void drawBall(Canvas c) {
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(75, 0, 0, 0));
-        c.drawCircle(ball.x + 2f, ball.y + 3f, ball.radius + 3f, p);
-        p.setColor(Color.WHITE);
-        c.drawCircle(ball.x, ball.y, ball.radius, p);
-        p.setColor(Color.rgb(35, 39, 44));
-        c.drawCircle(ball.x, ball.y, 2.2f, p);
-        c.drawCircle(ball.x + 3.2f, ball.y - 2.4f, 1.6f, p);
-        c.drawCircle(ball.x - 3.3f, ball.y + 2.4f, 1.6f, p);
-    }
-
-    private void drawHud(Canvas c) {
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(235, 6, 10, 15));
-        r.set(18, 14, screenW - 18, 66);
-        c.drawRoundRect(r, 14f, 14f, p);
-
-        drawText(c, "STREET 11", 34, 46, 12f, Color.rgb(155, 240, 194), true);
-        drawText(c, String.format(Locale.US, "%02d:%02d", (int)matchClock / 60,
-                (int)matchClock % 60), screenW - 82, 46, 13f, Color.WHITE, true);
-
-        drawCentered(c, homeScore + "  -  " + awayScore, screenW * 0.5f, 47, 24f,
-                Color.WHITE, true);
-
-        p.setColor(Color.argb(80, 130, 210, 255));
-        c.drawRoundRect(new RectF(18, 67, screenW - 18, 69), 2, 2, p);
-
-        drawText(c, "BLUE UNITED", screenW * 0.5f - 120f, 34f, 9f,
-                Color.rgb(150, 194, 255), true);
-        drawText(c, "RED ATHLETIC", screenW * 0.5f + 44f, 34f, 9f,
-                Color.rgb(255, 158, 169), true);
-
-        // Pause button.
-        p.setColor(Color.argb(210, 20, 26, 34));
-        r.set(screenW - 62, 18, screenW - 28, 52);
-        c.drawRoundRect(r, 10, 10, p);
-        drawText(c, "Ⅱ", screenW - 52, 41, 16f, Color.WHITE, true);
-    }
-
-    private void drawControls(Canvas c) {
-        float baseX = 105f;
-        float baseY = screenH - 112f;
-
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(62, 255, 255, 255));
-        c.drawCircle(baseX, baseY, 72f, p);
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(3f);
-        p.setColor(Color.argb(80, 255, 255, 255));
-        c.drawCircle(baseX, baseY, 72f, p);
-
-        float knobX = baseX + joystickDX * 38f;
-        float knobY = baseY + joystickDY * 38f;
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(190, 255, 255, 255));
-        c.drawCircle(knobX, knobY, 27f, p);
-
-        drawActionButton(c, screenW - 98f, screenH - 102f, 50f, "TIRO", Color.rgb(255, 77, 94));
-        drawActionButton(c, screenW - 215f, screenH - 160f, 43f, "PASE", Color.rgb(48, 154, 255));
-
-        drawText(c, "MOVER", 72f, screenH - 28f, 10f, Color.argb(180, 255,255,255), true);
-    }
-
-    private void drawActionButton(Canvas c, float x, float y, float radius, String label, int color) {
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(80, 0, 0, 0));
-        c.drawCircle(x + 2f, y + 4f, radius + 2f, p);
-
-        p.setColor(color);
-        c.drawCircle(x, y, radius, p);
-
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(2f);
-        p.setColor(Color.argb(160, 255, 255, 255));
-        c.drawCircle(x, y, radius, p);
-
-        drawCentered(c, label, x, y + 4f, label.equals("PASE") ? 10f : 11f,
-                Color.WHITE, true);
-    }
-
-    private void drawMenu(Canvas c) {
-        drawBase(c);
-
-        // Decorative pitch lines.
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(1f);
-        p.setColor(Color.argb(32, 107, 216, 255));
-        for (int i = 0; i < 8; i++) {
-            float x = screenW * 0.56f + i * 56f;
-            c.drawLine(x, 0, x - 190f, screenH, p);
+            text(c, label, x, y+4, label.equals("PASS") ? 11 : 12, Color.WHITE, true);
         }
 
-        drawText(c, "SEASON // 01", 58, 72, 12f, Color.rgb(113, 190, 255), true);
-        drawText(c, "STREET 11", 58, 148, 58f, Color.WHITE, true);
-        drawText(c, "MOBILE FOOTBALL", 61, 178, 15f, Color.rgb(154, 236, 201), true);
-        drawText(c, "OFFLINE  •  QUICK MATCH", 61, 205, 11f, Color.rgb(139, 151, 164), true);
-
-        // Main card.
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(230, 11, 18, 26));
-        r.set(58, 238, screenW * 0.56f, screenH - 46f);
-        c.drawRoundRect(r, 22f, 22f, p);
-
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(2f);
-        p.setColor(Color.argb(60, 102, 197, 255));
-        c.drawRoundRect(r, 22f, 22f, p);
-
-        drawText(c, "MATCH CENTER", 84, 278, 11f, Color.rgb(137, 154, 173), true);
-        drawText(c, "BLUE UNITED", 84, 316, 24f, Color.WHITE, true);
-        drawText(c, "OVR  82", 84, 340, 11f, Color.rgb(120, 194, 255), true);
-
-        drawActionButton(c, screenW * 0.47f, 330, 36f, "VS", Color.rgb(37, 52, 71));
-
-        drawText(c, "RED ATHLETIC", 84, 386, 24f, Color.WHITE, true);
-        drawText(c, "OVR  81", 84, 410, 11f, Color.rgb(255, 133, 145), true);
-
-        // Play button.
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.rgb(56, 168, 255));
-        r.set(84, 448, screenW * 0.56f - 24, 506);
-        c.drawRoundRect(r, 15, 15, p);
-        drawCentered(c, "PLAY QUICK MATCH", (84 + screenW * 0.56f - 24) * 0.5f,
-                484, 15f, Color.WHITE, true);
-
-        drawText(c, "2 x 45 SECONDS", 84, 541, 11f, Color.rgb(137, 154, 173), true);
-        drawText(c, "HAPTICS READY", 220, 541, 11f, Color.rgb(92, 218, 160), true);
-
-        // Right status panel.
-        float panelL = screenW * 0.62f;
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(218, 10, 16, 23));
-        r.set(panelL, 82, screenW - 58, screenH - 82);
-        c.drawRoundRect(r, 20f, 20f, p);
-
-        drawText(c, "PLAYER PROFILE", panelL + 28, 122, 11f, Color.rgb(137, 154, 173), true);
-        drawText(c, "H4SENSI FC", panelL + 28, 164, 30f, Color.WHITE, true);
-
-        drawStat(c, panelL + 30, 205, "OVR", "82");
-        drawStat(c, panelL + 155, 205, "W", String.valueOf(homeScore));
-        drawStat(c, panelL + 30, 286, "COINS", "12,540");
-        drawStat(c, panelL + 155, 286, "FORM", "+6");
-
-        p.setColor(Color.argb(35, 99, 255, 183));
-        r.set(panelL + 28, 362, screenW - 86, 434);
-        c.drawRoundRect(r, 14, 14, p);
-        drawText(c, "BUILD", panelL + 46, 389, 10f, Color.rgb(145, 171, 187), true);
-        drawText(c, "PACE  •  PRESS  •  FINISH", panelL + 46, 415, 12f,
-                Color.rgb(104, 221, 177), true);
-
-        drawText(c, "NO LOGIN  •  NO ADS", panelL + 28, screenH - 112, 10f,
-                Color.rgb(114, 129, 145), true);
-        drawText(c, "v1.0  /  READY", panelL + 28, screenH - 88, 10f,
-                Color.rgb(92, 218, 160), true);
-    }
-
-    private void drawStat(Canvas c, float x, float y, String label, String value) {
-        drawText(c, label, x, y, 9f, Color.rgb(112, 129, 145), true);
-        drawText(c, value, x, y + 31, 23f, Color.WHITE, true);
-    }
-
-    private void drawPause(Canvas c) {
-        p.setColor(Color.argb(150, 3, 6, 9));
-        p.setStyle(Paint.Style.FILL);
-        c.drawRect(0, 0, screenW, screenH, p);
-
-        p.setColor(Color.rgb(12, 19, 27));
-        r.set(screenW * 0.33f, screenH * 0.2f, screenW * 0.67f, screenH * 0.8f);
-        c.drawRoundRect(r, 22f, 22f, p);
-
-        drawCentered(c, "MATCH PAUSED", screenW * 0.5f, screenH * 0.34f, 27f, Color.WHITE, true);
-        drawCentered(c, "The grass is still. Humanity survives.", screenW * 0.5f,
-                screenH * 0.43f, 11f, Color.rgb(131, 148, 163), false);
-
-        drawPauseButton(c, screenW * 0.5f, screenH * 0.55f, "RESUME");
-        drawPauseButton(c, screenW * 0.5f, screenH * 0.67f, "QUIT");
-    }
-
-    private void drawPauseButton(Canvas c, float x, float y, String label) {
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(label.equals("RESUME") ? Color.rgb(53, 166, 255) : Color.rgb(45, 55, 68));
-        r.set(x - 115, y - 25, x + 115, y + 25);
-        c.drawRoundRect(r, 12, 12, p);
-        drawCentered(c, label, x, y + 4, 12f, Color.WHITE, true);
-    }
-
-    private void drawResult(Canvas c) {
-        drawBase(c);
-
-        drawText(c, "FULL TIME", 0, 0, 1f, Color.WHITE, false);
-        drawCentered(c, resultTitle, screenW * 0.5f, screenH * 0.26f, 48f,
-                resultTitle.equals("VICTORY") ? Color.rgb(98, 230, 165) : Color.WHITE, true);
-
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.argb(235, 11, 18, 26));
-        r.set(screenW * 0.28f, screenH * 0.37f, screenW * 0.72f, screenH * 0.66f);
-        c.drawRoundRect(r, 24f, 24f, p);
-
-        drawCentered(c, "BLUE UNITED", screenW * 0.38f, screenH * 0.46f, 15f,
-                Color.rgb(145, 196, 255), true);
-        drawCentered(c, "RED ATHLETIC", screenW * 0.62f, screenH * 0.46f, 15f,
-                Color.rgb(255, 151, 163), true);
-        drawCentered(c, String.valueOf(homeScore), screenW * 0.38f, screenH * 0.56f, 50f,
-                Color.WHITE, true);
-        drawCentered(c, String.valueOf(awayScore), screenW * 0.62f, screenH * 0.56f, 50f,
-                Color.WHITE, true);
-
-        p.setStyle(Paint.Style.FILL);
-        p.setColor(Color.rgb(53, 166, 255));
-        r.set(screenW * 0.35f, screenH * 0.73f, screenW * 0.65f, screenH * 0.82f);
-        c.drawRoundRect(r, 15, 15, p);
-        drawCentered(c, "PLAY AGAIN", screenW * 0.5f, screenH * 0.785f, 14f, Color.WHITE, true);
-    }
-
-    private void drawText(Canvas c, String s, float x, float y, float size, int color, boolean bold) {
-        text.setTextSize(size);
-        text.setColor(color);
-        text.setTypeface(Typeface.create("sans", bold ? Typeface.BOLD : Typeface.NORMAL));
-        text.setTextAlign(Paint.Align.LEFT);
-        c.drawText(s, x, y, text);
-    }
-
-    private void drawCentered(Canvas c, String s, float x, float y, float size, int color, boolean bold) {
-        text.setTextSize(size);
-        text.setColor(color);
-        text.setTypeface(Typeface.create("sans", bold ? Typeface.BOLD : Typeface.NORMAL));
-        text.setTextAlign(Paint.Align.CENTER);
-        c.drawText(s, x, y, text);
-    }
-
-    private void shoot() {
-        if (state != MATCH) return;
-
-        Player pl = getControlledPlayer();
-        if (pl == null) return;
-
-        float dx = ball.x - pl.x;
-        float dy = ball.y - pl.y;
-        float d = len(dx, dy);
-
-        if (d < 70f) {
-            float aimX = right() + 55f;
-            float aimY = midY() + (ball.y - midY()) * 0.25f;
-            float ax = aimX - ball.x;
-            float ay = aimY - ball.y;
-            float ad = Math.max(1f, len(ax, ay));
-            float power = 535f;
-            ball.vx = ax / ad * power;
-            ball.vy = ay / ad * power;
-            ball.ownerHome = true;
-        }
-    }
-
-    private void pass() {
-        if (state != MATCH) return;
-
-        Player pl = getControlledPlayer();
-        if (pl == null) return;
-
-        float best = Float.MAX_VALUE;
-        Player target = null;
-        for (Player candidate : players) {
-            if (!candidate.home || candidate == pl) continue;
-            if (candidate == getKeeper()) continue;
-
-            float dx = candidate.x - pl.x;
-            float dy = candidate.y - pl.y;
-            float d = len(dx, dy);
-
-            // Favor players upfield.
-            float forwardPenalty = candidate.x < pl.x ? 260f : 0f;
-            float score = d + forwardPenalty;
-            if (score < best) {
-                best = score;
-                target = candidate;
-            }
+        private void text(Canvas c, String s, float x, float y, float size, int color, boolean center) {
+            t.setTextSize(size);
+            t.setColor(color);
+            t.setTextAlign(center ? Paint.Align.CENTER : Paint.Align.LEFT);
+            c.drawText(s, x, y, t);
         }
 
-        float ballDist = len(ball.x - pl.x, ball.y - pl.y);
-        if (target != null && ballDist < 78f) {
-            float ax = target.x - ball.x;
-            float ay = target.y - ball.y;
-            float ad = Math.max(1f, len(ax, ay));
-            ball.vx = ax / ad * 350f;
-            ball.vy = ay / ad * 350f;
-            ball.ownerHome = true;
-        }
-    }
+        @Override
+        public boolean onTouchEvent(MotionEvent e) {
+            float x = e.getX(), y = e.getY();
+            int w = getWidth(), h = getHeight();
 
-    private Player getKeeper() {
-        for (Player pl : players) {
-            if (pl.home && pl.keeper) return pl;
-        }
-        return null;
-    }
+            if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                FootballRenderer.Snapshot s = renderer.snapshot();
 
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if (!initialized) return true;
-
-        float x = event.getX();
-        float y = event.getY();
-
-        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            if (state == MENU) {
-                if (x >= 58f && x <= screenW * 0.56f && y >= 448f && y <= 520f) {
-                    startMatch();
-                    performClick();
-                    return true;
-                }
-            } else if (state == MATCH) {
-                if (x > screenW - 82f && y < 74f) {
-                    state = PAUSE;
-                    performClick();
+                if (!matchStarted) {
+                    if (x > w*.25f && x < w*.75f && y > h*.50f && y < h*.70f) {
+                        matchStarted = true;
+                        runOnGl(() -> renderer.startMatch());
+                        invalidate();
+                        performClick();
+                    }
                     return true;
                 }
 
-                if (distance(x, y, screenW - 98f, screenH - 102f) < 70f) {
-                    shoot();
-                    performClick();
-                    return true;
+                if (s.state == FootballRenderer.MATCH) {
+                    if (x > w - 90 && y < 90) {
+                        runOnGl(() -> renderer.pause());
+                        performClick();
+                        return true;
+                    }
+                    if (distance(x,y,w-96,h-105) < 72) {
+                        runOnGl(() -> renderer.shoot());
+                        performClick();
+                        return true;
+                    }
+                    if (distance(x,y,w-210,h-158) < 60) {
+                        runOnGl(() -> renderer.pass());
+                        performClick();
+                        return true;
+                    }
+                    if (x < w*.45f && y > h*.50f) {
+                        joyTouch = true;
+                        updateJoy(x,y,w,h);
+                        return true;
+                    }
+                } else if (s.state == FootballRenderer.PAUSED) {
+                    if (Math.abs(x-w*.5f)<150 && Math.abs(y-h*.52f)<38) {
+                        runOnGl(() -> renderer.resume());
+                        performClick();
+                        return true;
+                    }
+                    if (Math.abs(x-w*.5f)<150 && Math.abs(y-h*.64f)<38) {
+                        matchStarted = false;
+                        runOnGl(() -> renderer.backToMenu());
+                        performClick();
+                        invalidate();
+                        return true;
+                    }
+                } else if (s.state == FootballRenderer.RESULT) {
+                    if (Math.abs(x-w*.5f)<160 && Math.abs(y-h*.66f)<42) {
+                        runOnGl(() -> renderer.startMatch());
+                        performClick();
+                        return true;
+                    }
                 }
-
-                if (distance(x, y, screenW - 215f, screenH - 160f) < 60f) {
-                    pass();
-                    performClick();
-                    return true;
-                }
-
-                if (x < screenW * 0.45f && y > screenH * 0.52f) {
-                    joystickActive = true;
-                    updateJoystick(x, y);
-                    return true;
-                }
-            } else if (state == PAUSE) {
-                float cx = screenW * 0.5f;
-                if (Math.abs(x - cx) < 150f && Math.abs(y - screenH * 0.55f) < 35f) {
-                    state = MATCH;
-                    performClick();
-                    return true;
-                }
-                if (Math.abs(x - cx) < 150f && Math.abs(y - screenH * 0.67f) < 35f) {
-                    state = MENU;
-                    performClick();
-                    return true;
-                }
-            } else if (state == RESULT) {
-                if (x >= screenW * 0.35f && x <= screenW * 0.65f
-                        && y >= screenH * 0.71f && y <= screenH * 0.84f) {
-                    startMatch();
-                    performClick();
-                    return true;
-                }
-            }
-        } else if (event.getActionMasked() == MotionEvent.ACTION_MOVE) {
-            if (state == MATCH && joystickActive) {
-                updateJoystick(x, y);
+            } else if (e.getActionMasked() == MotionEvent.ACTION_MOVE && joyTouch) {
+                updateJoy(x,y,w,h);
+                return true;
+            } else if (e.getActionMasked() == MotionEvent.ACTION_UP
+                    || e.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                joyTouch = false;
+                joyX = 0; joyY = 0;
+                runOnGl(() -> renderer.setJoystick(0,0));
                 return true;
             }
-        } else if (event.getActionMasked() == MotionEvent.ACTION_UP
-                || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
-            joystickActive = false;
-            joystickDX = 0f;
-            joystickDY = 0f;
             return true;
         }
 
-        return true;
-    }
-
-    private void updateJoystick(float x, float y) {
-        float baseX = 105f;
-        float baseY = screenH - 112f;
-        float dx = x - baseX;
-        float dy = y - baseY;
-        float d = len(dx, dy);
-        if (d > 72f) {
-            dx = dx / d * 72f;
-            dy = dy / d * 72f;
+        private void updateJoy(float x,float y,int w,int h) {
+            float dx=x-105, dy=y-(h-112);
+            float d=(float)Math.sqrt(dx*dx+dy*dy);
+            if(d>70){dx=dx/d*70;dy=dy/d*70;}
+            joyX=dx/70f; joyY=dy/70f;
+            runOnGl(() -> renderer.setJoystick(joyX,joyY));
+            invalidate();
         }
-        joystickX = dx;
-        joystickY = dy;
-        joystickDX = dx / 72f;
-        joystickDY = dy / 72f;
-    }
 
-    private float distance(float x1, float y1, float x2, float y2) {
-        return len(x1 - x2, y1 - y2);
-    }
+        private float distance(float a,float b,float c,float d) {
+            float x=a-c,y=b-d; return (float)Math.sqrt(x*x+y*y);
+        }
 
-    @Override
-    public boolean performClick() {
-        super.performClick();
-        return true;
-    }
-
-    private static class Player {
-        float x;
-        float y;
-        float homeX;
-        float homeY;
-        float vx;
-        float vy;
-        final boolean home;
-        final int number;
-        final String name;
-        boolean controlled;
-        boolean keeper;
-        final float radius = 16f;
-
-        Player(float x, float y, float homeX, float homeY, boolean home, int number, String name) {
-            this.x = x;
-            this.y = y;
-            this.homeX = homeX;
-            this.homeY = homeY;
-            this.home = home;
-            this.number = number;
-            this.name = name;
-            this.keeper = number == 1;
+        @Override public boolean performClick() {
+            super.performClick();
+            return true;
         }
     }
 
-    private static class Ball {
-        float x;
-        float y;
-        float vx;
-        float vy;
-        float radius = 8f;
-        boolean ownerHome;
+    static class FootballRenderer implements GLSurfaceView.Renderer {
+        static final int MENU=0, MATCH=1, PAUSED=2, RESULT=3;
+
+        private final float[] proj=new float[16];
+        private final float[] view=new float[16];
+        private final float[] vp=new float[16];
+        private final float[] model=new float[16];
+        private final float[] mvp=new float[16];
+        private final float[] lightM=new float[16];
+        private int program;
+        private int uMvp,uModel,uColor;
+        private Mesh cube,sphere,cylinder,plane;
+        private int width,height;
+        private volatile int state=MENU;
+        private volatile float joyX,joyY;
+        private float clock;
+        private int homeScore,awayScore;
+        private Ball ball=new Ball();
+        private final List<Player> players=new ArrayList<>();
+
+        private static final float FIELD_X=10.6f;
+        private static final float FIELD_Z=17.6f;
+
+        @Override public void onSurfaceCreated(GL10 gl,EGLConfig config) {
+            GLES20.glClearColor(0.02f,0.05f,0.08f,1);
+            GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+            GLES20.glDepthFunc(GLES20.GL_LEQUAL);
+            GLES20.glEnable(GLES20.GL_CULL_FACE);
+            program=Shader.build();
+            uMvp=GLES20.glGetUniformLocation(program,"uMVP");
+            uModel=GLES20.glGetUniformLocation(program,"uModel");
+            uColor=GLES20.glGetUniformLocation(program,"uColor");
+            cube=Mesh.cube();
+            sphere=Mesh.sphere(12,10);
+            cylinder=Mesh.cylinder(12);
+            plane=Mesh.plane();
+        }
+
+        @Override public void onSurfaceChanged(GL10 gl,int w,int h) {
+            width=w; height=h;
+            GLES20.glViewport(0,0,w,h);
+            float aspect=(float)w/Math.max(1,h);
+            Matrix.perspectiveM(proj,0,48f,aspect,0.1f,100f);
+            camera();
+        }
+
+        @Override public void onDrawFrame(GL10 gl) {
+            long now=System.nanoTime();
+            if(lastNs==0) lastNs=now;
+            float dt=Math.min(0.033f,(now-lastNs)/1_000_000_000f);
+            lastNs=now;
+
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT|GLES20.GL_DEPTH_BUFFER_BIT);
+            camera();
+
+            if(state==MATCH) update(dt);
+            drawStadium();
+            drawField();
+            drawPlayers();
+            drawBall();
+
+            if(state==RESULT){
+                // Keep the world frozen behind the HUD.
+            }
+        }
+        private long lastNs;
+
+        private void camera() {
+            float camY=11.7f, camZ=14.5f;
+            Matrix.setLookAtM(view,0,0,camY,camZ,0,0,0,0,1,0);
+            Matrix.multiplyMM(vp,0,proj,0,view,0);
+        }
+
+        void startMatch() {
+            state=MATCH; clock=0; homeScore=0; awayScore=0; buildTeams();
+        }
+        void pause(){ if(state==MATCH) state=PAUSED; }
+        void resume(){ if(state==PAUSED) state=MATCH; }
+        void backToMenu(){ state=MENU; }
+        void setJoystick(float x,float y){joyX=x; joyY=y;}
+
+        Snapshot snapshot(){ return new Snapshot(state,clock,homeScore,awayScore); }
+
+        private void buildTeams() {
+            players.clear();
+            float[][] home={{-4.55f,0.0f},{-2.9f,-5.7f},{-2.9f,5.7f},{-1.0f,-3.2f},{-1.0f,3.2f},
+                    {1.0f,-5.3f},{0.2f,-1.7f},{0.2f,1.7f},{2.9f,-4.0f},{2.9f,4.0f},{4.15f,0.0f}};
+            for(int i=0;i<home.length;i++) players.add(new Player(home[i][0],home[i][1],true,i+1));
+            for(int i=0;i<home.length;i++) players.add(new Player(-home[i][0],home[i][1],false,i+1));
+            ball.x=0; ball.z=0; ball.vx=0; ball.vz=0;
+        }
+
+        private void update(float dt) {
+            clock+=dt;
+            if(clock>=90f){clock=90f;state=RESULT;return;}
+
+            Player user=players.get(6);
+            float speed=5.2f;
+            user.vx=joyX*speed;
+            user.vz=joyY*speed;
+            user.x+=user.vx*dt;
+            user.z+=user.vz*dt;
+
+            for(Player p:players){
+                if(p!=user){
+                    float tx=p.baseX, tz=p.baseZ;
+                    float dist=(float)Math.hypot(ball.x-p.x,ball.z-p.z);
+                    if(!p.home && dist<5.5f){tx=ball.x;tz=ball.z;}
+                    else if(p.home && dist<3.2f && p.number!=1){tx=ball.x-0.7f;tz=ball.z;}
+                    float dx=tx-p.x, dz=tz-p.z, d=(float)Math.hypot(dx,dz);
+                    if(d>0.12f){
+                        float sp=p.home?2.3f:2.8f;
+                        p.vx=dx/d*sp; p.vz=dz/d*sp;
+                        p.x+=p.vx*dt; p.z+=p.vz*dt;
+                    }
+                }
+                p.x=clamp(p.x,-FIELD_X/2+0.5f,FIELD_X/2-0.5f);
+                p.z=clamp(p.z,-FIELD_Z/2+0.5f,FIELD_Z/2-0.5f);
+            }
+
+            float d=(float)Math.hypot(ball.x-user.x,ball.z-user.z);
+            if(d<1.25f){
+                ball.vx+=joyX*7.5f*dt;
+                ball.vz+=joyY*7.5f*dt;
+                if(Math.hypot(joyX,joyY)>0.15) {
+                    ball.ownerHome=true;
+                }
+            }
+
+            ball.x+=ball.vx*dt; ball.z+=ball.vz*dt;
+            float fr=(float)Math.pow(0.985,dt*60f);
+            ball.vx*=fr; ball.vz*=fr;
+
+            float goalHalf=1.65f;
+            if(ball.z>FIELD_Z/2+0.7f){
+                if(Math.abs(ball.x)<goalHalf){homeScore++;resetBall();}
+                else {ball.z=FIELD_Z/2-0.1f;ball.vz=-Math.abs(ball.vz)*0.7f;}
+            }
+            if(ball.z<-FIELD_Z/2-0.7f){
+                if(Math.abs(ball.x)<goalHalf){awayScore++;resetBall();}
+                else {ball.z=-FIELD_Z/2+0.1f;ball.vz=Math.abs(ball.vz)*0.7f;}
+            }
+            if(ball.x<-FIELD_X/2+0.15f){ball.x=-FIELD_X/2+0.15f;ball.vx=Math.abs(ball.vx)*0.7f;}
+            if(ball.x>FIELD_X/2-0.15f){ball.x=FIELD_X/2-0.15f;ball.vx=-Math.abs(ball.vx)*0.7f;}
+        }
+
+        private void resetBall(){
+            ball.x=0;ball.z=0;ball.vx=0;ball.vz=0;
+            for(Player p:players){p.x=p.baseX;p.z=p.baseZ;p.vx=0;p.vz=0;}
+        }
+
+        void shoot(){
+            if(state!=MATCH)return;
+            Player user=players.get(6);
+            if(Math.hypot(ball.x-user.x,ball.z-user.z)<1.65f){
+                float aimZ=FIELD_Z/2+1.2f;
+                float dz=aimZ-ball.z, dx=-ball.x*0.22f;
+                float d=(float)Math.hypot(dx,dz);
+                ball.vx=dx/d*18f; ball.vz=dz/d*18f; ball.ownerHome=true;
+            }
+        }
+
+        void pass(){
+            if(state!=MATCH)return;
+            Player user=players.get(6), target=null;
+            float best=999;
+            for(Player p:players) if(p.home && p!=user){
+                float d=(float)Math.hypot(p.x-user.x,p.z-user.z);
+                if(d<best && p.number!=1 && p.x>user.x-1){best=d;target=p;}
+            }
+            if(target!=null && Math.hypot(ball.x-user.x,ball.z-user.z)<1.7f){
+                float dx=target.x-ball.x,dz=target.z-ball.z,d=(float)Math.hypot(dx,dz);
+                ball.vx=dx/d*11f;ball.vz=dz/d*11f;ball.ownerHome=true;
+            }
+        }
+
+        private void drawStadium(){
+            drawBox(0,-0.9f,FIELD_Z/2+2.8f,FIELD_X+4,1.8f,3.8f,new float[]{0.05f,0.09f,0.13f,1});
+            drawBox(0,-0.9f,-FIELD_Z/2-2.8f,FIELD_X+4,1.8f,3.8f,new float[]{0.05f,0.09f,0.13f,1});
+            drawBox(-FIELD_X/2-2.2f,-0.9f,0,3.8f,1.8f,FIELD_Z+5,new float[]{0.045f,0.08f,0.12f,1});
+            drawBox(FIELD_X/2+2.2f,-0.9f,0,3.8f,1.8f,FIELD_Z+5,new float[]{0.045f,0.08f,0.12f,1});
+        }
+
+        private void drawField(){
+            drawPlane(0,-0.16f,0,FIELD_X,FIELD_Z,new float[]{0.055f,0.42f,0.22f,1});
+            for(int i=-8;i<=8;i+=2){
+                drawPlane(-FIELD_X/2+0.001f,-0.15f,i,FIELD_X-0.002f,0.9f,
+                        new float[]{0.06f+(i%4==0?0.018f:0),0.46f+(i%4==0?0.03f:0),0.24f,1});
+            }
+            float white=0.9f;
+            drawThinBox(0,-0.04f,0,0.035f,0.02f,FIELD_Z,new float[]{white,white,white,1});
+            drawArcCircle(0,-0.035f,0,2.9f,new float[]{1,1,1,1});
+            drawLine(-FIELD_X/2+0.06f,-0.04f,0,FIELD_X*.18f,.02f,new float[]{1,1,1,1});
+            drawLine(FIELD_X/2-0.06f,-0.04f,0,FIELD_X*.18f,.02f,new float[]{1,1,1,1});
+            drawGoal(0,0,FIELD_Z/2);
+            drawGoal(0,0,-FIELD_Z/2);
+        }
+
+        private void drawPlayers(){
+            for(Player p:players){
+                float col=p.home?0.05f:0.86f;
+                float[] jersey=p.home?new float[]{0.08f,0.42f,0.95f,1}:new float[]{0.92f,0.08f,0.16f,1};
+                float[] shorts=p.home?new float[]{0.04f,0.11f,0.25f,1}:new float[]{0.22f,0.02f,0.04f,1};
+                drawCylinder(p.x,0.42f,p.z,0.25f,0.75f,jersey);
+                drawCylinder(p.x-0.12f,0.02f,p.z,0.10f,0.55f,shorts);
+                drawCylinder(p.x+0.12f,0.02f,p.z,0.10f,0.55f,shorts);
+                drawSphere(p.x,1.18f,p.z,0.20f,new float[]{0.9f,0.73f,0.58f,1});
+                drawBox(p.x-0.19f,-0.24f,p.z,0.16f,0.10f,0.30f,shorts);
+                drawBox(p.x+0.19f,-0.24f,p.z,0.16f,0.10f,0.30f,shorts);
+                if(p==players.get(6)) drawRing(p.x,1.55f,p.z,0.28f,new float[]{1,1,1,0.85f});
+                // shoulder/number accent
+                drawBox(p.x,0.48f,p.z-0.20f,0.30f,0.16f,0.03f,new float[]{0.97f,0.97f,0.97f,1});
+            }
+        }
+
+        private void drawBall(){
+            drawSphere(ball.x,0.15f,ball.z,0.15f,new float[]{0.98f,0.98f,0.98f,1});
+            drawSphere(ball.x,0.15f,ball.z,0.152f,new float[]{0.12f,0.12f,0.12f,0.18f});
+        }
+
+        private void drawGoal(float x,float y,float z){
+            float sign=z>0?1:-1;
+            float[] white={0.95f,0.95f,0.95f,1};
+            drawBox(x-1.65f,y+1.45f,z,0.09f,2.9f,0.09f,white);
+            drawBox(x+1.65f,y+1.45f,z,0.09f,2.9f,0.09f,white);
+            drawBox(x,y+2.9f,z,3.3f,0.09f,0.09f,white);
+            drawBox(x,y+1.45f,z+sign*0.8f,3.25f,2.9f,0.07f,new float[]{0.9f,0.9f,0.9f,0.35f});
+        }
+
+        private void drawPlane(float x,float y,float z,float sx,float sz,float[] color){
+            Matrix.setIdentityM(model,0); Matrix.translateM(model,0,x,y,z); Matrix.scaleM(model,0,sx,1,sz); drawMesh(plane,color);
+        }
+        private void drawBox(float x,float y,float z,float sx,float sy,float sz,float[] color){
+            Matrix.setIdentityM(model,0); Matrix.translateM(model,0,x,y,z); Matrix.scaleM(model,0,sx,sy,sz); drawMesh(cube,color);
+        }
+        private void drawThinBox(float x,float y,float z,float sx,float sy,float sz,float[] color){
+            drawBox(x,y,z,sx,sy,sz,color);
+        }
+        private void drawCylinder(float x,float y,float z,float radius,float height,float[] color){
+            Matrix.setIdentityM(model,0);Matrix.translateM(model,0,x,y+height/2,z);Matrix.scaleM(model,0,radius,height,radius);drawMesh(cylinder,color);
+        }
+        private void drawSphere(float x,float y,float z,float radius,float[] color){
+            Matrix.setIdentityM(model,0);Matrix.translateM(model,0,x,y,z);Matrix.scaleM(model,0,radius,radius,radius);drawMesh(sphere,color);
+        }
+        private void drawRing(float x,float y,float z,float radius,float[] color){
+            Matrix.setIdentityM(model,0);Matrix.translateM(model,0,x,y,z);Matrix.scaleM(model,0,radius,radius*0.25f,radius);drawMesh(sphere,color);
+        }
+        private void drawLine(float x,float y,float z,float length,float thick,float[] color){
+            drawBox(x,y,z,0.02f,0.01f,length/2,color);
+        }
+        private void drawArcCircle(float x,float y,float z,float rad,float[] color){
+            for(int i=0;i<40;i++){
+                double a1=i*Math.PI*2/40;
+                double a2=(i+1)*Math.PI*2/40;
+                float x1=x+(float)Math.cos(a1)*rad,z1=z+(float)Math.sin(a1)*rad;
+                float x2=x+(float)Math.cos(a2)*rad,z2=z+(float)Math.sin(a2)*rad;
+                drawBox((x1+x2)/2,y,(z1+z2)/2,
+                        0.018f,0.012f,(float)Math.hypot(x2-x1,z2-z1)/2,color);
+            }
+        }
+
+        private void drawMesh(Mesh mesh,float[] color){
+            GLES20.glUseProgram(program);
+            Matrix.multiplyMM(mvp,0,vp,0,model,0);
+            GLES20.glUniformMatrix4fv(uMvp,1,false,mvp,0);
+            GLES20.glUniformMatrix4fv(uModel,1,false,model,0);
+            GLES20.glUniform4fv(uColor,1,color,0);
+            mesh.draw(program);
+        }
+
+        private float clamp(float v,float a,float b){return Math.max(a,Math.min(b,v));}
+
+        static class Snapshot {
+            final int state; final float clock; final int home,away;
+            Snapshot(int state,float clock,int home,int away){this.state=state;this.clock=clock;this.home=home;this.away=away;}
+        }
+        static class Player {
+            float x,z,baseX,baseZ,vx,vz; final boolean home; final int number;
+            Player(float x,float z,boolean home,int number){this.x=x;this.z=z;this.baseX=x;this.baseZ=z;this.home=home;this.number=number;}
+        }
+        static class Ball {
+            float x,z,vx,vz; boolean ownerHome;
+        }
+    }
+
+    static class Shader {
+        static int build(){
+            String vs="uniform mat4 uMVP; uniform mat4 uModel; attribute vec3 aPos; attribute vec3 aNormal; varying vec3 vN; void main(){gl_Position=uMVP*vec4(aPos,1.0); vN=mat3(uModel)*aNormal;}";
+            String fs="precision mediump float; uniform vec4 uColor; varying vec3 vN; void main(){vec3 n=normalize(vN); vec3 l=normalize(vec3(0.35,1.0,0.5)); float d=max(dot(n,l),0.0); float light=0.38+d*0.62; gl_FragColor=vec4(uColor.rgb*light,uColor.a);}";
+            int v=compile(GLES20.GL_VERTEX_SHADER,vs), f=compile(GLES20.GL_FRAGMENT_SHADER,fs);
+            int pr=GLES20.glCreateProgram();
+            GLES20.glAttachShader(pr,v);GLES20.glAttachShader(pr,f);GLES20.glBindAttribLocation(pr,0,"aPos");GLES20.glBindAttribLocation(pr,1,"aNormal");
+            GLES20.glLinkProgram(pr);
+            int[] ok=new int[1];GLES20.glGetProgramiv(pr,GLES20.GL_LINK_STATUS,ok,0);
+            if(ok[0]==0){String log=GLES20.glGetProgramInfoLog(pr);GLES20.glDeleteProgram(pr);throw new RuntimeException(log);}
+            return pr;
+        }
+        static int compile(int type,String src){
+            int sh=GLES20.glCreateShader(type);GLES20.glShaderSource(sh,src);GLES20.glCompileShader(sh);
+            int[] ok=new int[1];GLES20.glGetShaderiv(sh,GLES20.GL_COMPILE_STATUS,ok,0);
+            if(ok[0]==0){String log=GLES20.glGetShaderInfoLog(sh);GLES20.glDeleteShader(sh);throw new RuntimeException(log);}
+            return sh;
+        }
+    }
+
+    static class Mesh {
+        final FloatBuffer vertices,normals; final int count;
+        Mesh(float[] v,float[] n){
+            vertices=bb(v.length*4);vertices.put(v).position(0);
+            normals=bb(n.length*4);normals.put(n).position(0);
+            count=v.length/3;
+        }
+        void draw(int program){
+            int ap=GLES20.glGetAttribLocation(program,"aPos"), an=GLES20.glGetAttribLocation(program,"aNormal");
+            GLES20.glEnableVertexAttribArray(ap);GLES20.glEnableVertexAttribArray(an);
+            vertices.position(0);normals.position(0);
+            GLES20.glVertexAttribPointer(ap,3,GLES20.GL_FLOAT,false,0,vertices);
+            GLES20.glVertexAttribPointer(an,3,GLES20.GL_FLOAT,false,0,normals);
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLES,0,count);
+            GLES20.glDisableVertexAttribArray(ap);GLES20.glDisableVertexAttribArray(an);
+        }
+        static FloatBuffer bb(int n){return ByteBuffer.allocateDirect(n).order(ByteOrder.nativeOrder()).asFloatBuffer();}
+        static Mesh plane(){
+            float[] v={-0.5f,0,-0.5f, 0.5f,0,-0.5f, 0.5f,0,0.5f, -0.5f,0,-0.5f, 0.5f,0,0.5f, -0.5f,0,0.5f};
+            float[] n=new float[18];for(int i=0;i<18;i+=3){n[i]=0;n[i+1]=1;n[i+2]=0;} return new Mesh(v,n);
+        }
+        static Mesh cube(){
+            float[] v={
+                -0.5f,-0.5f,0.5f, 0.5f,-0.5f,0.5f, 0.5f,0.5f,0.5f, -0.5f,-0.5f,0.5f, 0.5f,0.5f,0.5f, -0.5f,0.5f,0.5f,
+                0.5f,-0.5f,-0.5f, -0.5f,-0.5f,-0.5f, -0.5f,0.5f,-0.5f, 0.5f,-0.5f,-0.5f, -0.5f,0.5f,-0.5f, 0.5f,0.5f,-0.5f,
+                -0.5f,0.5f,0.5f, 0.5f,0.5f,0.5f, 0.5f,0.5f,-0.5f, -0.5f,0.5f,0.5f, 0.5f,0.5f,-0.5f, -0.5f,0.5f,-0.5f,
+                -0.5f,-0.5f,-0.5f, 0.5f,-0.5f,-0.5f, 0.5f,-0.5f,0.5f, -0.5f,-0.5f,-0.5f, 0.5f,-0.5f,0.5f, -0.5f,-0.5f,0.5f,
+                -0.5f,-0.5f,-0.5f, -0.5f,-0.5f,0.5f, -0.5f,0.5f,0.5f, -0.5f,-0.5f,-0.5f, -0.5f,0.5f,0.5f, -0.5f,0.5f,-0.5f,
+                0.5f,-0.5f,0.5f, 0.5f,-0.5f,-0.5f, 0.5f,0.5f,-0.5f, 0.5f,-0.5f,0.5f, 0.5f,0.5f,-0.5f, 0.5f,0.5f,0.5f
+            };
+            float[] n=new float[108];
+            for(int face=0;face<6;face++){float nx=0,ny=0,nz=0;if(face==0)nz=1;else if(face==1)nz=-1;else if(face==2)ny=1;else if(face==3)ny=-1;else if(face==4)nx=-1;else nx=1;for(int i=0;i<18;i+=3){int k=face*18+i;n[k]=nx;n[k+1]=ny;n[k+2]=nz;}}
+            return new Mesh(v,n);
+        }
+        static Mesh cylinder(int seg){
+            ArrayList<Float> vs=new ArrayList<>(), ns=new ArrayList<>();
+            for(int i=0;i<seg;i++){
+                double a1=i*Math.PI*2/seg,a2=(i+1)*Math.PI*2/seg;
+                float x1=(float)Math.cos(a1),z1=(float)Math.sin(a1),x2=(float)Math.cos(a2),z2=(float)Math.sin(a2);
+                tri(vs,ns,x1,-0.5f,z1,x2,-0.5f,z2,x2,0.5f,z2,nx(x1),0,nz(z1));
+                tri(vs,ns,x1,-0.5f,z1,x2,0.5f,z2,x1,0.5f,z1,nx(x1),0,nz(z1));
+                tri(vs,ns,0,0.5f,0,x1,0.5f,z1,x2,0.5f,z2,0,1,0);
+                tri(vs,ns,0,-0.5f,0,x2,-0.5f,z2,x1,-0.5f,z1,0,-1,0);
+            }
+            return new Mesh(to(vs),to(ns));
+        }
+        static float nx(float x){return x;}
+        static float nz(float z){return z;}
+        static Mesh sphere(int seg,int rings){
+            ArrayList<Float> vs=new ArrayList<>(),ns=new ArrayList<>();
+            for(int y=0;y<rings;y++){
+                double t1=Math.PI*y/rings-Math.PI/2,t2=Math.PI*(y+1)/rings-Math.PI/2;
+                for(int x=0;x<seg;x++){
+                    double a1=2*Math.PI*x/seg,a2=2*Math.PI*(x+1)/seg;
+                    float[] p1=sp(a1,t1),p2=sp(a2,t1),p3=sp(a2,t2),p4=sp(a1,t2);
+                    tri(vs,ns,p1,p2,p3);tri(vs,ns,p1,p3,p4);
+                }
+            }
+            return new Mesh(to(vs),to(ns));
+        }
+        static float[] sp(double a,double t){float ct=(float)Math.cos(t);return new float[]{ct*(float)Math.cos(a),(float)Math.sin(t),ct*(float)Math.sin(a)};}
+        static void tri(ArrayList<Float> v,ArrayList<Float> n,float ax,float ay,float az,float bx,float by,float bz,float cx,float cy,float cz,float nx,float ny,float nz){
+            add(v,ax,ay,az);add(v,bx,by,bz);add(v,cx,cy,cz);add(n,nx,ny,nz);add(n,nx,ny,nz);add(n,nx,ny,nz);
+        }
+        static void tri(ArrayList<Float> v,ArrayList<Float> n,float[] a,float[] b,float[] c){tri(v,n,a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2],a[0],a[1],a[2]);}
+        static void add(ArrayList<Float> a,float x,float y,float z){a.add(x);a.add(y);a.add(z);}
+        static float[] to(ArrayList<Float> a){float[] o=new float[a.size()];for(int i=0;i<o.length;i++)o[i]=a.get(i);return o;}
     }
 }
